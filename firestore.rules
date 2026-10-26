@@ -1,0 +1,62 @@
+rules_version = '2';
+// Gunnadoo Command Centre — security rules.
+// Paste this whole file into: Firebase console > Firestore Database > Rules > Publish.
+// EDIT the two owner emails below (lower case) so they match firebase-config.js.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function ownerEmails() { return ['damschneider@hotmail.com', 'c_micko17@hotmail.com']; }
+
+    function signedIn()   { return request.auth != null && request.auth.token.email_verified == true; }
+    function myEmail()    { return request.auth.token.email.lower(); }
+    function isOwner()    { return signedIn() && myEmail() in ownerEmails(); }
+    function profilePath(){ return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasProfile() { return signedIn() && exists(profilePath()); }
+    function role()       { return get(profilePath()).data.role; }
+    function isAdmin()    { return isOwner() || (hasProfile() && role() == 'admin'); }
+    function isMember()   { return isOwner() || hasProfile(); }
+    function canWork()    { return isAdmin() || (hasProfile() && role() == 'staff'); }
+    function invitePath() { return /databases/$(database)/documents/invites/$(myEmail()); }
+
+    // Who is allowed to join, and with what role. Admins manage these.
+    match /invites/{inviteEmail} {
+      allow read: if isAdmin() || (signedIn() && myEmail() == inviteEmail);
+      allow write: if isAdmin();
+    }
+
+    // One profile per person. Created on first login from their invite.
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.email == myEmail()
+        && (
+             (isOwner() && request.resource.data.role == 'admin')
+          || (exists(invitePath()) && request.resource.data.role == get(invitePath()).data.role)
+        );
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == uid && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    // Homepage link tiles. Each tile lists which roles can see it.
+    match /tiles/{id} {
+      allow read: if isAdmin() || (hasProfile() && role() in resource.data.roles);
+      allow write: if isAdmin();
+    }
+
+    // Machinery register + service history.
+    match /machines/{id} {
+      allow read: if isMember();
+      allow create, update: if canWork();
+      allow delete: if isAdmin();
+
+      match /services/{sid} {
+        allow read: if isMember();
+        allow create, update: if canWork();
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}

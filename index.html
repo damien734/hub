@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gunnadoo Command Centre</title>
+  <meta name="theme-color" content="#39938E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gunnadoo">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar" id="topbar" hidden>
+    <a href="#/" class="brand"><span class="brand-mark">G</span><span>Gunnadoo<b> Command Centre</b></span></a>
+    <div class="topbar-right">
+      <span class="who" id="who"></span>
+      <button class="btn ghost small" id="signOutBtn">Sign out</button>
+    </div>
+  </header>
+  <main id="app" class="wrap"><p class="muted center pad">Loading…</p></main>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

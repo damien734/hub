@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en-AU"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Harvest Grain Tracker</title>
+<meta name="theme-color" content="#39938E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gunnadoo">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>.hublink{display:inline-block;margin:4px 0 6px;font-weight:600;text-decoration:none;color:#39938E;font-family:system-ui,-apple-system,sans-serif}</style>
+
+<style>
+:root{--bg:#faf8f3;--fg:#2a2a24;--mut:#6b6a5e;--card:#fff;--bd:#ddd8c8;--ac:#8a6a14;--acfg:#fff;--ok:#2e6b3a;--bad:#a33;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1b17;--fg:#ece9de;--mut:#a09d8c;--card:#262520;--bd:#3d3b33;--ac:#d9b44a;--acfg:#1c1b17;--ok:#7fc08c;--bad:#e58a8a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1c1b17;--fg:#ece9de;--mut:#a09d8c;--card:#262520;--bd:#3d3b33;--ac:#d9b44a;--acfg:#1c1b17;--ok:#7fc08c;--bad:#e58a8a;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:12px}
+h1{font-size:20px;margin:4px 0 10px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{flex:1;min-height:52px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:10px;font:inherit;font-weight:700}
+.tabs button.on{background:var(--ac);color:var(--acfg);border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+label{display:block;font-size:13px;color:var(--mut)}
+input,select{width:100%;min-height:52px;padding:10px;margin-top:3px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;font-size:17px}
+#f_t{font-size:26px;font-weight:700}
+button{min-height:48px;font:inherit;cursor:pointer}
+button.p,button.s{padding:10px 16px;border-radius:10px;border:2px solid var(--ac);font-weight:700}
+button.p{background:var(--ac);color:var(--acfg)}button.s{background:transparent;color:var(--ac)}
+button.lg{width:100%;min-height:62px;font-size:20px}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.seg button{flex:1 1 auto;min-width:88px;padding:10px 6px;border:2px solid var(--bd);background:var(--bg);color:var(--fg);border-radius:10px;font-weight:700}
+.seg button.on{background:var(--ac);color:var(--acfg);border-color:var(--ac)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.mut{color:var(--mut);font-size:13px}.big{font-size:18px;font-weight:700}
+.it{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 4px;text-align:right;border-bottom:1px solid var(--bd)}th:first-child,td:first-child{text-align:left}
+.wrap{overflow-x:auto}.tag{display:inline-block;padding:2px 8px;border:1px solid var(--bd);border-radius:10px;font-size:12px;color:var(--mut);margin:2px}
+.msg{padding:9px;border-radius:8px;margin:8px 0;font-size:14px;background:var(--card);border:1px solid var(--bd)}.err{color:var(--bad)}.ok{color:var(--ok);font-weight:700}
+.hide{display:none}button.x{background:none;border:0;color:var(--ac);padding:6px 10px;min-height:44px;font-weight:600}
+body.staff .own{display:none!important}
+.tn{font-weight:800;font-size:15px;color:var(--ac)}
+.seg button.cr-Canola{background:#fff6c4;color:var(--fg)}.seg button.cr-Wheat{background:#e2f2da;color:var(--fg)}.seg button.cr-Barley{background:#dbeaf7;color:var(--fg)}.seg button.cr-FabaBeans{background:#eadff5;color:var(--fg)}
+.seg button.on{border-color:var(--ac);box-shadow:inset 0 0 0 3px var(--ac)}
+.cr-Canola{background:#fff6c4}.cr-Wheat{background:#e2f2da}.cr-Barley{background:#dbeaf7}.cr-FabaBeans{background:#eadff5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cr-Canola{background:#3f3b1a}:root:not([data-theme="light"]) .cr-Wheat{background:#243a22}:root:not([data-theme="light"]) .cr-Barley{background:#1f3347}:root:not([data-theme="light"]) .cr-FabaBeans{background:#382a49}}
+:root[data-theme="dark"] .cr-Canola{background:#3f3b1a}:root[data-theme="dark"] .cr-Wheat{background:#243a22}:root[data-theme="dark"] .cr-Barley{background:#1f3347}:root[data-theme="dark"] .cr-FabaBeans{background:#382a49}
+</style></head><body><main>
+<a class="hublink" href="./">← Command Centre</a>
+<h1>🌾 Harvest Grain Tracker <span id="who" class="tag"></span></h1>
+<div id="pvBar" class="msg hide">Previewing the staff view. <button class="x" id="pvExit">Exit preview</button></div>
+<div id="status" class="msg hide"></div>
+<div class="card" style="padding:8px 12px"><label>Your name (required)<input id="f_name" autocomplete="name" placeholder="Enter your name"></label></div>
+<div class="tabs"><button data-tab="add" class="on">Add</button><button data-tab="del">Loads</button><button data-tab="con" class="own">Contracts</button><button data-tab="out">Out load</button><button data-tab="tot">Totals</button></div>
+
+<section id="t-add">
+ <div class="card">
+  <div class="it"><span class="big" id="fTitle">Add load</span><button class="s hide" id="scanBtn">📷 Scan docket</button></div>
+  <input type="file" id="scanIn" accept="image/*" class="hide">
+  <div id="scanMsg" class="msg hide"></div>
+  <input type="hidden" id="f_crop" value="Wheat">
+  <div id="cropBtns" class="seg"></div>
+  <div class="grid">
+   <label>Stored in<select id="f_store"></select></label>
+   <label>Site / silo / bag<select id="f_site"></select></label>
+  </div>
+  <div id="addBox" class="row hide"><input id="addIn" style="flex:1"><button class="p" id="addOk">Add</button><button class="s" id="addNo">Cancel</button></div>
+  <div class="grid">
+   <label>Paddock<select id="f_paddock"></select></label>
+   <label>Tonnes<input type="number" id="f_t" step="0.01" inputmode="decimal"></label>
+   <label>Docket no.<input id="f_docket"></label>
+   <label>Truck rego<input id="f_rego" autocapitalize="characters" autocomplete="off"></label>
+   <label id="l_prot">Protein %<input type="number" id="f_prot" step="0.1" inputmode="decimal"></label>
+   <label id="l_grade">Grade<select id="f_grade"></select></label>
+   <label id="l_scr">Screenings %<input type="number" id="f_scr" step="0.1" inputmode="decimal"></label>
+   <label id="l_oil" class="hide">Oil %<input type="number" id="f_oil" step="0.1" inputmode="decimal"></label>
+   <label id="l_adm" class="hide">Admixture %<input type="number" id="f_adm" step="0.01" inputmode="decimal"></label>
+   <label id="l_moist" class="hide">Moisture %<input type="number" id="f_moist" step="0.1" inputmode="decimal"></label>
+   <label id="l_tw" class="hide">Test weight (kg/hl)<input type="number" id="f_tw" step="0.1" inputmode="decimal"></label>
+   <label>Contract / order no. (optional)<select id="f_con"></select></label>
+   <label>Date<input type="date" id="f_date"></label>
+   <label class="own">Sold price $/t (base)<input type="number" id="f_price" step="0.01" inputmode="decimal"></label>
+  </div>
+  <div id="preview" class="mut" style="margin-top:8px"></div>
+  <div class="row"><button class="p lg" id="saveDel">Save load</button></div>
+  <div class="row"><button class="s" id="again">↻ Same as last load</button><button class="s hide" id="cancelDel">Cancel edit</button></div>
+  <div id="toast" class="ok" style="margin-top:8px"></div>
+  <div class="mut">After saving, crop, storage, site, contract and price stay filled in. Paddock, tonnes, docket and the protein, screenings, grade, oil, admixture, moisture and test weight figures clear so each load is entered fresh.</div>
+ </div>
+ <div id="today" class="mut"></div>
+</section>
+
+<section id="t-del" class="hide"><div id="delList"></div></section>
+
+<section id="t-con" class="hide own">
+ <div class="card">
+  <span class="big" id="cTitle">Add contract</span>
+  <div class="grid">
+   <label>Contract / order no.<input id="c_no"></label>
+   <label>Buyer<input id="c_buyer"></label>
+   <label>Crop<select id="c_crop"></select></label>
+   <label>Delivery location<input id="c_loc"></label>
+   <label>Contract tonnes<input type="number" id="c_qty" inputmode="decimal"></label>
+   <label>Price $/t (base)<input type="number" id="c_price" step="0.01" inputmode="decimal"></label>
+   <label>Payment basis<select id="c_basis"><option value="days">Days from delivery</option><option value="eow">End of delivery week + days</option></select></label>
+   <label>Payment terms (days)<input type="number" id="c_terms" inputmode="numeric" placeholder="e.g. 15 (0 = due at end of week)"></label>
+   
+  </div>
+  <div class="row"><button class="p" id="saveCon">Save contract</button><button class="s hide" id="cancelCon">Cancel edit</button></div>
+ </div>
+ <div id="conList"></div>
+</section>
+
+<section id="t-out" class="hide">
+ <div class="card">
+  <span class="big">Out load</span>
+  <div class="mut">Grain leaving your own silos or grain bags, for example to a receival site.</div>
+  <div class="grid">
+   <label>Silo / bag<select id="o_src"></select></label>
+   <label>Tonnes out<input type="number" id="o_t" step="0.01" inputmode="decimal"></label>
+   <label>Delivered to<select id="o_dest"></select></label>
+   <label>Docket no.<input id="o_docket"></label>
+   <label>Truck rego<input id="o_rego" autocapitalize="characters" autocomplete="off"></label>
+   <label>Date<input type="date" id="o_date"></label>
+  </div>
+  <div class="mut">Receival sites are the ones on the Add screen (Stored in: Receival site). Add new ones there.</div>
+  <div id="o_prev" class="mut" style="margin-top:8px"></div>
+  <div class="row"><button class="p lg" id="o_save">Save out load</button></div>
+  <div id="o_toast" class="ok" style="margin-top:8px"></div>
+ </div>
+ <div id="o_stock"></div><div id="o_list"></div>
+</section>
+
+<section id="t-tot" class="hide">
+ <div id="totals"></div><div id="padTot"></div>
+ <div class="own">
+  <div class="card">
+   <span class="big">Storage lists</span>
+   <p class="mut">Add new options from the Add screen with “＋ Add new…”. Removing one here does not change loads already recorded.</p>
+   <div id="listMgr"></div>
+  </div>
+  <div class="card">
+   <span class="big">Settings</span>
+   <p class="mut">Starting values: 42% oil base, 1.5% of price per 1% oil above or below, admixture removed from the weight. Check these against your buyer’s settlement.</p>
+   <div class="grid"><label>Oil base %<input type="number" id="s_base" step="0.1"></label><label>% of price per 1% oil<input type="number" id="s_rate" step="0.1"></label><label>Week ends on<select id="s_week"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label></div>
+   <div class="row"><button class="s" id="saveSet">Save settings</button><button class="s" id="csv">Export CSV</button><button class="s" id="pvOn">Preview staff view</button></div>
+  </div>
+ </div>
+</section>
+</main>
+<script type="module">
+import {requireMember,makeDb,downloads} from "./core.js";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
+const money=n=>"$"+fmt(n,0);
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const num=id=>{const v=$(id).value;return v===""?null:Number(v)};
+const CROPS=["Wheat","Canola","Barley","Faba Beans"],DEF=["Receival site","Own silo","Grain bag"],GR={Wheat:["H1","H2","APW1","AH1","ASW1","Feed"],Barley:["Malt 1","Food 1","Feed 1","Feed 2"]};
+let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
+const owner=()=>admin&&!pv;
+const adj=(crop,oil,p)=>crop==="Canola"&&oil!=null?p*(1+S.oilRate/100*(oil-S.oilBase)):p;
+const cleanT=d=>d.crop==="Canola"?d.t*(1-(d.adm||0)/100):d.t;
+const adjP=d=>{const p=P["d_"+d.id];return p==null?null:adj(d.crop,d.oil,p)};
+const val=d=>{const p=adjP(d);return p==null?null:p*cleanT(d)};
+const delivered=c=>D.filter(d=>d.cid===c.id).reduce((a,d)=>a+cleanT(d),0);
+function status(t,err){const e=$("#status");e.textContent=t;e.className="msg"+(err?" err":"")+(t?"":" hide")}
+function mode(){document.body.classList.toggle("staff",!owner());$("#who").textContent=owner()?"Owner":"Staff";$("#pvBar").classList.toggle("hide",!(admin&&pv));fillSelects();preview();renderAll()}
+function go(t){document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x.dataset.tab===t));["add","del","con","out","tot"].forEach(k=>$("#t-"+k).classList.toggle("hide",k!==t))}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
+$("#pvOn").onclick=()=>{pv=true;mode();go("add")};$("#pvExit").onclick=()=>{pv=false;mode()};
+$("#c_crop").innerHTML=CROPS.map(c=>`<option>${c}</option>`).join("");
+$("#cropBtns").innerHTML=CROPS.map(c=>`<button data-c="${c}" class="cr-${c.replace(/\s/g,"")}">${c}</button>`).join("");
+$("#cropBtns").onclick=e=>{const b=e.target.closest("button");if(b&&b.dataset.c!==$("#f_crop").value)setCrop(b.dataset.c)};
+
+/* dropdown lists */
+const opts=(list,cur,ph,staffAdd)=>{const a=[...list];if(cur&&!a.includes(cur))a.push(cur);return (ph?`<option value="">${ph}</option>`:"")+a.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("")+(owner()||staffAdd?`<option value="__add">＋ Add new…</option>`:"")};
+function setSS(store,site){curStore=store;curSite=site||"";$("#f_store").innerHTML=opts(L.stores,store);$("#f_store").value=store;$("#f_site").innerHTML=opts(L.sites[store]||[],curSite,"— select —",true);$("#f_site").value=curSite}
+const padList=()=>[...new Set([...(L.paddocks||[]),...D.map(d=>d.paddock).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+function setPad(v){curPad=v||"";$("#f_paddock").innerHTML=opts(padList(),curPad,"— select paddock —",true);$("#f_paddock").value=curPad}
+$("#f_paddock").onchange=e=>{if(e.target.value==="__add"){setPad(curPad);showAdd("paddock");return}curPad=e.target.value};
+const fillSelects=()=>{setSS(curStore||L.stores[0],curSite);setGrade(curGrade);setPad(curPad)};
+function setGrade(g){curGrade=g||"";$("#f_grade").innerHTML=opts(L.grades[$("#f_crop").value]||[],curGrade,"— select —");$("#f_grade").value=curGrade}
+function showAdd(k){addKind=k;$("#addIn").placeholder=k==="store"?"New storage type":k==="grade"?"New grade":k==="paddock"?"New paddock name":"New silo / bag name";$("#addIn").value="";$("#addBox").classList.remove("hide");$("#addIn").focus()}
+$("#f_store").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("store");return}setSS(e.target.value,"")};
+$("#f_site").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("site");return}curSite=e.target.value};
+$("#addNo").onclick=()=>$("#addBox").classList.add("hide");
+$("#f_grade").onchange=e=>{if(e.target.value==="__add"){setGrade(curGrade);showAdd("grade");return}curGrade=e.target.value};
+const saveL=async()=>{try{await db.doc("lists/main").set(L)}catch(e){status("Could not save the list.",true)}};
+$("#addOk").onclick=async()=>{const v=$("#addIn").value.trim();if(!v)return;
+  if(addKind==="store"){if(!L.stores.includes(v))L.stores.push(v);setSS(v,"")}
+  else if(addKind==="grade"){const c=$("#f_crop").value;(L.grades[c]=L.grades[c]||[]);if(!L.grades[c].includes(v))L.grades[c].push(v);setGrade(v)}
+  else if(addKind==="paddock"){L.paddocks=L.paddocks||[];if(!L.paddocks.includes(v))L.paddocks.push(v);setPad(v)}
+  else{(L.sites[curStore]=L.sites[curStore]||[]);if(!L.sites[curStore].includes(v))L.sites[curStore].push(v);setSS(curStore,v)}
+  $("#addBox").classList.add("hide");await saveL();renderLists()};
+function renderLists(){$("#listMgr").innerHTML=`<div style="margin-bottom:8px"><b>Paddocks</b><div>${(L.paddocks||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-pd="1" data-pn="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No paddocks yet</span>`}</div></div>`+["Wheat","Barley"].map(c=>`<div style="margin-bottom:8px"><b>${c} grades</b><div>${(L.grades[c]||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-g="${c}" data-n="${esc(n)}">×</button></span>`).join("")}</div></div>`).join("")+L.stores.map(s=>`<div style="margin-bottom:8px"><b>${esc(s)}</b> <button class="x" data-rs="${esc(s)}">remove</button><div>${(L.sites[s]||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-s="${esc(s)}" data-n="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No sites yet</span>`}</div></div>`).join("")}
+$("#listMgr").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.pd){L.paddocks=(L.paddocks||[]).filter(x=>x!==b.dataset.pn)}
+  else if(b.dataset.g){L.grades[b.dataset.g]=(L.grades[b.dataset.g]||[]).filter(x=>x!==b.dataset.n)}
+  else if(b.dataset.rs){L.stores=L.stores.filter(x=>x!==b.dataset.rs);delete L.sites[b.dataset.rs]}
+  else if(b.dataset.n){L.sites[b.dataset.s]=(L.sites[b.dataset.s]||[]).filter(x=>x!==b.dataset.n)}
+  else return;await saveL();fillSelects();renderLists()};
+
+/* form */
+function setCrop(c){$("#t-add .card").className="card cr-"+c.replace(/\s/g,"");$("#f_crop").value=c;document.querySelectorAll("#cropBtns button").forEach(b=>b.classList.toggle("on",b.dataset.c===c));cropFields()}
+function cropFields(){const c=$("#f_crop").value,wb=c==="Wheat"||c==="Barley",ca=c==="Canola";
+  $("#l_prot").classList.toggle("hide",!wb);$("#l_scr").classList.toggle("hide",!wb);$("#l_grade").classList.toggle("hide",!wb);setGrade("");$("#l_oil").classList.toggle("hide",!ca);$("#l_adm").classList.toggle("hide",!ca);$("#l_moist").classList.toggle("hide",!(wb||ca));$("#l_tw").classList.toggle("hide",!ca);if(owner()&&!editD){const lp=lastPrice(c);$("#f_price").value=lp??""}conOptions();preview()}
+const vis=id=>!$(id).classList.contains("hide");
+function readDel(){return{date:$("#f_date").value,crop:$("#f_crop").value,store:$("#f_store").value,site:$("#f_site").value,docket:$("#f_docket").value.trim(),rego:$("#f_rego").value.trim().toUpperCase(),paddock:$("#f_paddock").value||null,t:num("#f_t"),
+  prot:vis("#l_prot")?num("#f_prot"):null,scr:vis("#l_scr")?num("#f_scr"):null,grade:vis("#l_grade")?($("#f_grade").value||null):null,oil:vis("#l_oil")?num("#f_oil"):null,adm:vis("#l_adm")?num("#f_adm"):null,moist:vis("#l_moist")?num("#f_moist"):null,tw:vis("#l_tw")?num("#f_tw"):null,cid:$("#f_con").value||null}}
+function preview(){const d=readDel();let s="";
+  if(d.t&&d.crop==="Canola")s=`Clean tonnes: ${fmt(cleanT(d))}`;
+  if(owner()&&d.t){const p=num("#f_price");if(p!=null){const a=adj(d.crop,d.oil,p);s+=(s?" · ":"")+`$${fmt(a)}/t${d.crop==="Canola"?" after oil":""} · Value ≈ ${money(a*cleanT(d))}`}}
+  $("#preview").textContent=s}
+["f_t","f_oil","f_adm","f_price"].forEach(i=>$("#"+i).oninput=preview);
+$("#f_con").onchange=()=>{const v=P["c_"+$("#f_con").value];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v;preview()};
+function conOptions(){const sel=$("#f_con"),cur=sel.value,crop=$("#f_crop").value;
+  sel.innerHTML=`<option value="">None / not contracted</option>`+C.filter(c=>c.crop===crop).map(c=>`<option value="${c.id}">${esc(c.no)} – ${esc(c.buyer)} (${fmt(c.qty-delivered(c),0)} t left)</option>`).join("");sel.value=cur}
+function fillFrom(d,full){setCrop(d.crop);setSS(d.store||L.stores[0],d.site||"");setGrade(full?d.grade:"");
+  $("#f_prot").value=full?(d.prot??""):"";$("#f_scr").value=full?(d.scr??""):"";$("#f_oil").value=full?(d.oil??""):"";$("#f_adm").value=full?(d.adm??""):"";$("#f_moist").value=full?(d.moist??""):"";$("#f_tw").value=full?(d.tw??""):"";
+  $("#f_con").value=d.cid||"";$("#f_price").value=owner()?((full?P["d_"+d.id]:(lastPrice(d.crop)??P["d_"+d.id]))??""):"";
+  $("#f_docket").value=full?(d.docket||""):"";$("#f_rego").value=d.rego||"";setPad(full?d.paddock:"");$("#f_t").value=full?(d.t??""):"";if(full)$("#f_date").value=d.date;preview()}
+function lastPrice(c){const r=D.filter(x=>x.crop===c&&P["d_"+x.id]!=null).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0))[0];return r?P["d_"+r.id]:null}
+function lastLoad(){const m=D.filter(x=>x.by===myId),a=m.length?m:D;return a.reduce((b,x)=>!b||(x.ts||0)>(b.ts||0)?x:b,null)}
+$("#again").onclick=()=>{const l=lastLoad();if(!l){status("No earlier load to copy yet.",true);return}status("");fillFrom(l,false);$("#f_t").focus()};
+function endEdit(){editD=null;$("#fTitle").textContent="Add load";$("#saveDel").textContent="Save load";$("#cancelDel").classList.add("hide")}
+$("#cancelDel").onclick=()=>{endEdit();$("#f_docket").value="";$("#f_t").value=""};
+$("#saveDel").onclick=async()=>{const d=readDel();
+  if(!d.date||!d.t||d.t<=0){status("Enter the tonnes.",true);return}
+  if(!d.paddock){status("Choose the paddock this load came from.",true);return}
+  const nm=$("#f_name").value.trim();if(!nm){status("Enter your name at the top first.",true);return}
+  if(/receival/i.test(d.store)){const miss=d.crop==="Canola"?(d.oil==null||d.adm==null?"oil % and admixture %":""):(d.crop==="Wheat"||d.crop==="Barley")?(d.prot==null||!d.grade?"protein % and grade":""):"";if(miss){status(`Receival site loads need ${miss} entered with the tonnes.`,true);return}}
+  if(!db){status("Saving is not available in this view.",true);return}
+  try{let id=editD;const old=editD&&D.find(x=>x.id===editD);
+   if(old){d.ts=old.ts;d.by=old.by;d.byName=old.byName||nm;d.editedBy=nm;if(old.paid)d.paid=true;await db.doc("deliveries/"+id).set(d)}else{d.ts=Date.now();d.by=myId;d.byName=nm;const r=db.collection("deliveries").doc();id=r.id;await r.set(d)}
+   if(owner()){const p=num("#f_price"),pr=db.doc("pricing/d_"+id);if(p!=null)await pr.set({v:p});else if(old)await pr.delete().catch(()=>{})}
+   $("#toast").textContent=`Saved ✓ ${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}`;status("");
+   endEdit();$("#f_docket").value="";$("#f_t").value="";$("#f_prot").value="";$("#f_scr").value="";$("#f_oil").value="";$("#f_adm").value="";$("#f_moist").value="";$("#f_tw").value="";setGrade("");setPad("");preview();$("#f_t").focus()}
+  catch(e){status("Could not save ("+(e.code||"error")+"). Family logins are view only.",true)}};
+
+/* loads list */
+function renderDel(){
+  const rows=[...D].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).slice(0,owner()?500:60);
+  $("#delList").innerHTML=rows.length?rows.map(d=>{const c=C.find(x=>x.id===d.cid),v=owner()?val(d):null;
+   const q=[d.grade?`Grade ${esc(d.grade)}`:"",d.prot!=null?`Protein ${fmt(d.prot,1)}%`:"",d.scr!=null?`Screenings ${fmt(d.scr,1)}%`:"",d.oil!=null?`Oil ${fmt(d.oil,1)}%`:"",d.adm!=null?`Admix ${fmt(d.adm)}%`:"",d.moist!=null?`Moisture ${fmt(d.moist,1)}%`:"",d.tw!=null?`Test wt ${fmt(d.tw,1)} kg/hl`:""].filter(Boolean).join(" · ");
+   return `<div class="card cr-${d.crop.replace(/\s/g,"")}"><div class="it"><b>${esc(d.date)} · ${esc(d.crop)}</b><b>${fmt(d.t)} t${d.crop==="Canola"&&d.adm?` <span class="mut">(${fmt(cleanT(d))} clean)</span>`:""}</b></div>
+   <div class="mut">${esc(d.store)}${d.site?" – "+esc(d.site):""}${d.docket?" · Docket "+esc(d.docket):""}${d.rego?" · Rego "+esc(d.rego):""}${d.paddock?" · Paddock "+esc(d.paddock):""}</div>${owner()&&d.byName?`<div class="mut">Entered by ${esc(d.byName)}${d.editedBy&&d.editedBy!==d.byName?` · edited by ${esc(d.editedBy)}`:""}</div>`:""}${q?`<div>${q}</div>`:""}
+   <div>${c?`<span class="tag">Contract ${esc(c.no)}</span>`:`<span class="tag">Uncontracted</span>`}${v!=null?` $${fmt(adjP(d))}/t · ${money(v)}`:""}</div>
+   ${owner()&&c&&tdays(c)!=null?(d.paid?`<div class="mut">Paid ✓ <button class="x" data-up="${d.id}">Undo</button></div>`:(()=>{const x=dueOf(d.date,tdays(c),c.basis==="eow");return `<div>Payment due ${dfmt(x)} <span class="${dleft(x)<0?"err":""}">(${clock(x)})</span></div>`})()):""}
+   <div class="row" style="margin-top:2px"><button class="x" data-e="${d.id}">Edit</button>${owner()?`<button class="x own" data-x="${d.id}">Delete</button>`:""}</div></div>`}).join(""):`<p class="mut">No loads yet.</p>`;
+  const day=$("#f_date").value,r=D.filter(d=>d.date===day),g={};r.forEach(d=>g[d.crop]=(g[d.crop]||[]).concat(d));
+  $("#today").textContent=r.length?"Logged for this date: "+Object.entries(g).map(([k,a])=>`${k} ${fmt(a.reduce((s,d)=>s+cleanT(d),0))} t (${a.length} load${a.length>1?"s":""})`).join(" · "):""}
+$("#f_date").onchange=renderDel;
+$("#delList").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.up){await db.doc("deliveries/"+b.dataset.up).update({paid:false}).catch(()=>status("Could not update.",true));return}
+  if(b.dataset.e){const d=D.find(x=>x.id===b.dataset.e);editD=d.id;fillFrom(d,true);$("#fTitle").textContent="Edit load";$("#saveDel").textContent="Update load";$("#cancelDel").classList.remove("hide");go("add");scrollTo(0,0)}
+  if(b.dataset.x){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}
+    try{await db.doc("deliveries/"+b.dataset.x).delete();await db.doc("pricing/d_"+b.dataset.x).delete().catch(()=>{})}catch(er){status("Could not delete.",true)}}};
+
+/* contracts (owner) */
+function clearCon(){editC=null;["c_no","c_buyer","c_loc","c_qty","c_price","c_terms"].forEach(i=>$("#"+i).value="");$("#c_basis").value="days";$("#cTitle").textContent="Add contract";$("#cancelCon").classList.add("hide")}
+$("#cancelCon").onclick=clearCon;
+$("#saveCon").onclick=async()=>{const c={no:$("#c_no").value.trim(),buyer:$("#c_buyer").value.trim(),crop:$("#c_crop").value,loc:$("#c_loc").value.trim(),qty:num("#c_qty"),terms:num("#c_terms"),basis:$("#c_basis").value};
+  if(!c.no||!c.qty){status("Enter a contract number and tonnes.",true);return}
+  if(!db){status("Saving is not available in this view.",true);return}
+  try{let id=editC;if(id)await db.doc("contracts/"+id).set(c);else{const r=db.collection("contracts").doc();id=r.id;await r.set(c)}
+   const p=num("#c_price"),pr=db.doc("pricing/c_"+id);if(p!=null)await pr.set({v:p});else await pr.delete().catch(()=>{});status("");clearCon()}
+  catch(e){status("Could not save ("+(e.code||"error")+").",true)}};
+const tdays=c=>{const n=parseInt(c.terms,10);return Number.isFinite(n)?n:(c.days!=null?c.days:(c.basis==="eow"?0:null))};
+const valC=(d,c)=>{const p=P["d_"+d.id]??P["c_"+c.id];return p==null?null:adj(d.crop,d.oil,p)*cleanT(d)};
+const tlabel=c=>{const n=tdays(c);return c.basis==="eow"?(n?`${n} days after end of delivery week`:"end of delivery week"):`${n} days from delivery`};
+const dueOf=(s,n,eow)=>{const x=new Date(s+"T00:00:00");if(eow)x.setDate(x.getDate()+(S.weekEnd-x.getDay()+7)%7);x.setDate(x.getDate()+n);return x};
+const dleft=x=>{const t=new Date();t.setHours(0,0,0,0);return Math.round((x-t)/864e5)};
+const dfmt=x=>x.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
+const clock=x=>{const n=dleft(x);return n>0?`due in ${n} day${n>1?"s":""}`:n===0?"due today":`${-n} day${n<-1?"s":""} overdue`};
+function renderCon(){
+  if(!owner()){$("#conList").innerHTML="";return}
+  $("#conList").innerHTML=C.length?C.map(c=>{const dv=delivered(c),r=c.qty-dv,pc=Math.min(100,dv/c.qty*100),p=P["c_"+c.id],unp=D.filter(d=>d.cid===c.id&&!d.paid),owing=unp.reduce((s,d)=>s+(valC(d,c)||0),0),pay=tdays(c)!=null?Object.entries(D.filter(d=>d.cid===c.id&&!d.paid).reduce((o,d)=>{(o[d.date]=o[d.date]||[]).push(d);return o},{})).sort():[];
+   const od=pay.filter(([dt])=>dleft(dueOf(dt,tdays(c),c.basis==="eow"))<0),odAmt=od.reduce((s,[,a])=>s+a.reduce((t,d)=>t+(valC(d,c)||0),0),0);
+   return `<div class="card cr-${c.crop.replace(/\s/g,"")}"><div class="it"><b>${esc(c.no)} · ${esc(c.crop)}</b><b>${fmt(c.qty,0)} t${p!=null?` @ $${fmt(p)}`:""}</b></div>
+   <div class="mut">${esc(c.buyer)}${c.loc?" · Deliver to "+esc(c.loc):""}${tdays(c)!=null?" · Payment: "+tlabel(c):(c.terms?" · Payment: "+esc(c.terms):"")}</div><div class="bar"><i style="width:${pc}%"></i></div>
+   ${od.length?`<div class="err" style="font-weight:800;margin-bottom:4px">⚠ OVERDUE ${money(odAmt)} · ${od.length} delivery date${od.length>1?"s":""} past due</div>`:""}<div>Delivered <b>${fmt(dv)}</b> t · Owing <b>${money(owing)}</b> · ${r>=0?`Remaining <b>${fmt(r)}</b> t`:`<span class="err">Over by ${fmt(-r)} t</span>`}</div>
+   ${tdays(c)!=null?`<div style="margin-top:8px"><b>Payment clock · ${tlabel(c)}</b>${pay.length?pay.map(([dt,a])=>{const x=dueOf(dt,tdays(c),c.basis==="eow"),n=dleft(x),amt=a.reduce((s,d)=>s+(valC(d,c)||0),0);return `<div class="it" style="border-top:1px solid var(--bd);padding-top:4px"><span>${dfmt(new Date(dt+"T00:00:00"))} · ${fmt(a.reduce((s,d)=>s+cleanT(d),0))} t<br>Due <b class="${n<0?"err":""}">${dfmt(x)}</b> <span class="${n<0?"err":""}" style="font-weight:${n<0?800:400}">(${clock(x)})</span>${amt>0?` · ≈ ${money(amt)}`:""}</span><button class="x" data-paid="${a.map(d=>d.id).join(",")}">Mark paid</button></div>`}).join(""):`<div class="mut">No payments outstanding.</div>`}</div>`:""}
+   <div class="row" style="margin-top:2px"><button class="x" data-e="${c.id}">Edit</button>${unp.length?`<button class="x" data-paid="${unp.map(d=>d.id).join(",")}">Mark all paid</button>`:""}<button class="x" data-x="${c.id}">Delete</button></div></div>`}).join(""):`<p class="mut">No contracts yet.</p>`}
+$("#conList").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.paid){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again: paid";return}for(const id of b.dataset.paid.split(","))await db.doc("deliveries/"+id).update({paid:true}).catch(()=>status("Could not mark paid.",true));return}
+  if(b.dataset.e){const c=C.find(x=>x.id===b.dataset.e);editC=c.id;$("#c_no").value=c.no;$("#c_buyer").value=c.buyer||"";$("#c_crop").value=c.crop;$("#c_loc").value=c.loc||"";$("#c_qty").value=c.qty;$("#c_terms").value=tdays(c)??"";$("#c_basis").value=c.basis||"days";$("#c_price").value=P["c_"+c.id]??"";$("#cTitle").textContent="Edit contract";$("#cancelCon").classList.remove("hide");scrollTo(0,0)}
+  if(b.dataset.x){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}
+    try{await db.doc("contracts/"+b.dataset.x).delete();await db.doc("pricing/c_"+b.dataset.x).delete().catch(()=>{})}catch(er){status("Could not delete.",true)}}};
+
+/* totals */
+const wavg=(rows,k)=>{const r=rows.filter(d=>d[k]!=null),w=r.reduce((a,d)=>a+cleanT(d),0);return w?r.reduce((a,d)=>a+d[k]*cleanT(d),0)/w:null};
+function renderTot(){
+  $("#totals").innerHTML=[...new Set(D.map(d=>d.crop))].map(cr=>{const rows=D.filter(d=>d.crop===cr),g={};
+   rows.forEach(d=>{const k=d.store+"|"+(d.site||"");(g[k]=g[k]||[]).push(d)});
+   const cols=cr==="Canola"?[["oil","Oil %",1],["adm","Admix %",2],["moist","Moisture %",1],["tw","Test wt",1]]:(cr==="Wheat"||cr==="Barley")?[["prot","Protein %",1],["scr","Screenings %",2],["moist","Moisture %",1]]:[];
+   const cells=r=>cols.map(([k,,dp])=>{const a=wavg(r,k);return `<td>${a!=null?fmt(a,dp):"–"}</td>`}).join("");
+   const sum=r=>r.reduce((a,d)=>a+cleanT(d),0),tot=sum(rows);
+   const gl=(cr==="Wheat"||cr==="Barley")?Object.entries(rows.reduce((o,d)=>{const k=d.grade||"No grade";o[k]=(o[k]||0)+cleanT(d);return o},{})).map(([k,v])=>`${esc(k)} ${fmt(v)} t`).join(" · "):"";
+   return `<div class="card cr-${cr.replace(/\s/g,"")}"><div class="it"><b>${esc(cr)}</b><b>${fmt(tot)} t${cr==="Canola"?" clean":""}</b></div><div class="wrap"><table><tr><th>Storage</th><th>Loads</th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}<th>Tonnes</th></tr>`+
+   Object.entries(g).map(([k,r])=>{const [s,n]=k.split("|");return `<tr><td>${esc(s)}${n?" – "+esc(n):""}</td><td>${r.length}</td>${cells(r)}<td class="tn">${fmt(sum(r))}</td></tr>`}).join("")+
+   `<tr><th>All ${esc(cr)}</th><th>${rows.length}</th>${cells(rows).replace(/<td>/g,"<th>").replace(/<\/td>/g,"</th>")}<th class="tn">${fmt(tot)}</th></tr></table></div>${gl?`<div style="margin-top:6px">By grade: ${gl}</div>`:""}<p class="mut">Averages are weighted by tonnes.${cr==="Canola"?" Tonnes shown after admixture is removed.":""}</p></div>`}).join("")||`<p class="mut">Totals appear once you add loads.</p>`;
+  $("#s_base").value=S.oilBase;$("#s_rate").value=S.oilRate;$("#s_week").value=S.weekEnd;}
+$("#saveSet").onclick=async()=>{try{await db.doc("settings/main").set({oilBase:num("#s_base")??42,oilRate:num("#s_rate")??1.5,weekEnd:Number($("#s_week").value)});status("Settings saved.")}catch(e){status("Could not save settings.",true)}};
+$("#csv").onclick=async()=>{if(!dl){status("Download is not available in this view.",true);return}
+  const h=["date","crop","storage","site","docket","rego","paddock","grade","net_t","clean_t","protein","screenings","oil","admix","moisture","test_weight","contract","price","adj_price","value","entered_by"],q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const rows=D.map(d=>{const c=C.find(x=>x.id===d.cid);return [d.date,d.crop,d.store,d.site,d.docket,d.rego,d.paddock,d.grade,d.t,cleanT(d).toFixed(3),d.prot,d.scr,d.oil,d.adm,d.moist,d.tw,c?c.no:"",P["d_"+d.id],adjP(d)?.toFixed(2),val(d)?.toFixed(0),d.byName].map(q).join(",")});
+  try{await dl.save({filename:"grain-deliveries.csv",data:[h.join(","),...rows].join("\n")})}catch(e){}};
+/* out loads: grain taken from own silos / bags */
+const onFarm=d=>!/receival/i.test(d.store||"");
+const skey=d=>[d.store,d.site||"",d.crop].join("|");
+function stock(){const m={},g=d=>m[skey(d)]=m[skey(d)]||{store:d.store,site:d.site||"",crop:d.crop,inn:0,out:0};
+  D.filter(onFarm).forEach(d=>g(d).inn+=d.t);O.forEach(o=>g(o).out+=o.t);
+  return Object.entries(m).map(([k,v])=>({k,...v,left:v.inn-v.out})).sort((a,b)=>(a.store+a.site+a.crop).localeCompare(b.store+b.site+b.crop))}
+const sname=s=>esc(s.store)+(s.site?" – "+esc(s.site):"");
+function renderOut(){const st=stock(),has=st.filter(s=>s.left>0.005),cur=$("#o_src").value;
+  $("#o_src").innerHTML=`<option value="">— select silo / bag —</option>`+has.map(s=>`<option value="${esc(s.k)}">${sname(s)} · ${esc(s.crop)} · ${fmt(s.left)} t left</option>`).join("");
+  $("#o_src").value=has.some(s=>s.k===cur)?cur:"";
+  const dc=$("#o_dest").value,ds=[...new Set(L.stores.filter(x=>/receival/i.test(x)).flatMap(x=>L.sites[x]||[]))];
+  $("#o_dest").innerHTML=`<option value="">— select receival site —</option>`+ds.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");$("#o_dest").value=ds.includes(dc)?dc:"";
+  const rows=st.filter(s=>s.inn>0);
+  $("#o_stock").innerHTML=rows.length?`<div class="card"><span class="big">Stored on farm</span><div class="wrap"><table><tr><th>Silo / bag</th><th>Crop</th><th>In</th><th>Out</th><th>Left</th></tr>`+rows.map(s=>`<tr><td>${sname(s)}</td><td>${esc(s.crop)}</td><td class="tn">${fmt(s.inn)}</td><td class="tn">${fmt(s.out)}</td><td class="tn"><b>${fmt(Math.max(s.left,0))}</b></td></tr>`).join("")+`<tr><th colspan="2">All</th><th class="tn">${fmt(rows.reduce((a,s)=>a+s.inn,0))}</th><th class="tn">${fmt(rows.reduce((a,s)=>a+s.out,0))}</th><th class="tn">${fmt(rows.reduce((a,s)=>a+Math.max(s.left,0),0))}</th></tr></table></div><p class="mut">Tonnes in are the loads stored in own silos and grain bags. Canola is counted as loaded; admixture is only worked out once it is at the receival site. Left = in minus out.</p></div>`:`<p class="mut">Nothing stored on farm yet. Add a load stored in an own silo or grain bag.</p>`;
+  const r=[...O].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).slice(0,40);
+  $("#o_list").innerHTML=r.length?`<span class="big">Recent out loads</span>`+r.map(o=>`<div class="card cr-${esc(String(o.crop).replace(/\s/g,""))}"><div class="it"><b>${esc(o.date)} · ${esc(o.crop)}</b><b>${fmt(o.t)} t</b></div><div class="mut">From ${sname(o)}${o.dest?" → "+esc(o.dest):""}${o.docket?" · Docket "+esc(o.docket):""}${o.rego?" · Rego "+esc(o.rego):""}</div>${o.byName?`<div class="mut">Entered by ${esc(o.byName)}</div>`:""}${owner()?`<div class="row" style="margin-top:2px"><button class="x" data-ox="${o.id}">Delete</button></div>`:""}</div>`).join(""):"";
+  outPrev()}
+function outPrev(){const s=stock().find(x=>x.k===$("#o_src").value),t=num("#o_t");$("#o_prev").textContent=s&&t?`${fmt(Math.max(s.left-t,0))} t left in ${s.site||s.store} after this load${t>s.left+0.005?" (more than is stored)":""}`:""}
+$("#o_src").onchange=outPrev;$("#o_t").oninput=outPrev;
+$("#o_save").onclick=async()=>{const s=stock().find(x=>x.k===$("#o_src").value),t=num("#o_t"),date=$("#o_date").value,nm=$("#f_name").value.trim();
+  if(!nm){status("Enter your name at the top first.",true);return}
+  if(!s){status("Choose the silo or bag first.",true);return}
+  if(!t||t<=0||!date){status("Enter the tonnes and date.",true);return}
+  if(t>s.left+0.005){status(`Only ${fmt(s.left)} t left in ${s.site||s.store}.`,true);return}
+  if(!db){status("Saving is not available in this view.",true);return}
+  try{await db.collection("outloads").doc().set({date,crop:s.crop,store:s.store,site:s.site,t,dest:$("#o_dest").value.trim()||null,docket:$("#o_docket").value.trim(),rego:$("#o_rego").value.trim().toUpperCase(),ts:Date.now(),by:myId,byName:nm});
+   $("#o_toast").textContent=`Saved ✓ ${fmt(t)} t ${s.crop} out of ${s.site||s.store}`;status("");$("#o_t").value="";$("#o_docket").value="";outPrev()}
+  catch(e){status("Could not save ("+(e.code||"error")+"). Family logins are view only.",true)}};
+$("#o_list").onclick=async e=>{const b=e.target.closest("button");if(!b||!b.dataset.ox)return;
+  if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}
+  try{await db.doc("outloads/"+b.dataset.ox).delete()}catch(er){status("Could not delete.",true)}};
+function renderPad(){const m={};D.forEach(d=>{const k=d.paddock||"No paddock",x=m[k]=m[k]||{n:0,c:{}};x.n++;x.c[d.crop]=(x.c[d.crop]||0)+cleanT(d)});
+  const rows=Object.entries(m).sort((a,b)=>(a[0]==="No paddock")-(b[0]==="No paddock")||a[0].localeCompare(b[0]));
+  setPad(curPad);
+  $("#padTot").innerHTML=rows.length?`<div class="card"><span class="big">By paddock</span><div class="wrap"><table><tr><th>Paddock</th><th>Loads</th><th>Tonnes</th></tr>`+rows.map(([k,x])=>`<tr><td>${esc(k)}<div class="mut">${Object.entries(x.c).map(([c,v])=>`${esc(c)} ${fmt(v)} t`).join(" · ")}</div></td><td>${x.n}</td><td class="tn">${fmt(Object.values(x.c).reduce((a,v)=>a+v,0))}</td></tr>`).join("")+`</table></div><p class="mut">Harvested tonnes by paddock (canola after admixture). Loads with no paddock entered are grouped separately.</p></div>`:""}
+function renderAll(){conOptions();renderDel();renderCon();renderTot();renderPad();renderOut();renderLists();preview()}
+
+/* docket scan */
+$("#scanBtn").onclick=()=>$("#scanIn").click();
+$("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$("#scanMsg");m.className="msg";m.textContent="Reading docket…";
+  try{const bm=await createImageBitmap(f),s=Math.min(1,1600/Math.max(bm.width,bm.height)),c=document.createElement("canvas");
+   c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);c.getContext("2d").drawImage(bm,0,0,c.width,c.height);
+   const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",.85));
+   const r=await sample.json(`This is a photo of an Australian grain receival docket or weighbridge ticket. Extract the fields below and reply with JSON only, no other text. Use null for anything not clearly visible; never guess.
+{"date":"YYYY-MM-DD","crop":"Wheat|Canola|Barley|Faba Beans","docket":"docket or ticket number","rego":"truck registration","site":"receival site name","net_tonnes":number (net weight in tonnes; convert kg to tonnes),"protein":number,"screenings":number,"oil":number,"admixture":number (percent; may be labelled impurities or admix),"moisture":number,"test_weight":number (kg/hl; may be labelled TWT, TW or test wt),"grade":"string","contract_no":"string (the contract or order number, may be labelled contract, order, PO or delivery order no.)"}`,{images:[blob],modelTier:"default"});
+   if(r.date)$("#f_date").value=r.date;if(CROPS.includes(r.crop))setCrop(r.crop);if(r.grade&&(L.grades[$("#f_crop").value]||[]).includes(r.grade))setGrade(r.grade);
+   if(r.docket)$("#f_docket").value=r.docket;if(r.rego)$("#f_rego").value=String(r.rego).toUpperCase();if(r.net_tonnes!=null)$("#f_t").value=r.net_tonnes;
+   if(r.protein!=null)$("#f_prot").value=r.protein;if(r.screenings!=null)$("#f_scr").value=r.screenings;if(r.oil!=null)$("#f_oil").value=r.oil;if(r.admixture!=null)$("#f_adm").value=r.admixture;if(r.moisture!=null)$("#f_moist").value=r.moisture;if(r.test_weight!=null)$("#f_tw").value=r.test_weight;
+   let cmsg="";if(r.contract_no){const nn=v=>String(v).toLowerCase().replace(/[^a-z0-9]/g,""),c=C.find(x=>nn(x.no)===nn(r.contract_no));if(!c)cmsg=` Contract / order no. on docket: ${r.contract_no} (not in your contracts).`;if(c){if(c.crop!==$("#f_crop").value)setCrop(c.crop);$("#f_con").value=c.id;cmsg=` Contract / order no. ${c.no} selected.`;const v=P["c_"+c.id];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v}}
+   preview();m.textContent="Docket read. Please check every field against the paper docket before saving."+(r.grade?` Grade on docket: ${r.grade}.`:"")+cmsg+(r.moisture!=null&&!vis("#l_moist")?` Moisture: ${r.moisture}%.`:"")+(r.site?` Site on docket: ${r.site}.`:"")}
+  catch(er){m.className="msg err";m.textContent="Could not read that docket ("+(er.code||"error")+"). You can enter it by hand."}
+  e.target.value=""};
+
+/* start */
+$("#f_date").value=today();$("#o_date").value=today();try{$("#f_name").value=localStorage.getItem("gt_name")||""}catch(e){}
+$("#f_name").oninput=()=>{try{localStorage.setItem("gt_name",$("#f_name").value)}catch(e){}};
+setCrop("Wheat");setSS(L.stores[0],"");mode();
+(async()=>{
+  const me=await requireMember();
+  admin=me.role==="admin";myId=me.uid;const canWrite=me.role!=="family";
+  db=makeDb("grain_");dl=downloads;
+  if(!$("#f_name").value)$("#f_name").value=me.name||"";
+  mode();
+  if(!canWrite)status("You have view-only access. Ask Damo or Carissa to change you to Staff to add loads.",true);
+  const er=e=>status("Could not load data ("+(e.code||"error")+").",true);
+  db.collection("deliveries").onSnapshot(s=>{D=s.docs.map(x=>({id:x.id,...x.data()}));
+    if(!prefilled&&D.length&&!editD&&!$("#f_t").value){prefilled=true;const l=lastLoad();if(l)fillFrom(l,false)}renderAll()},er);
+  db.collection("outloads").onSnapshot(s=>{O=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
+  db.collection("contracts").onSnapshot(s=>{C=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
+  db.doc("settings/main").onSnapshot(s=>{if(s.exists)S={...S,...s.data()};renderAll()},()=>{});
+  db.doc("lists/main").onSnapshot(s=>{if(s.exists){const x=JSON.parse(JSON.stringify(s.data()));L={paddocks:x.paddocks||[],stores:x.stores||[...DEF],sites:x.sites||{},grades:x.grades||JSON.parse(JSON.stringify(GR))};fillSelects();renderAll()}},()=>{});
+  if(admin)db.collection("pricing").onSnapshot(s=>{P={};s.docs.forEach(x=>P[x.id]=x.data().v);if(owner()&&!editD&&!$("#f_price").value){const lp=lastPrice($("#f_crop").value);if(lp!=null)$("#f_price").value=lp}renderAll()},()=>{});
+})();
+</script></body></html>

@@ -46,6 +46,52 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ---- Harvest Grain Tracker ----
+    // Loads in and out: everyone sees them, staff + admin add/edit, only admin deletes.
+    match /grain_deliveries/{id} {
+      allow read: if isMember();
+      allow create, update: if canWork();
+      allow delete: if isAdmin();
+    }
+    match /grain_outloads/{id} {
+      allow read: if isMember();
+      allow create, update: if canWork();
+      allow delete: if isAdmin();
+    }
+    // Storage/paddock/grade dropdown lists: staff can add new options.
+    match /grain_lists/{id} {
+      allow read: if isMember();
+      allow write: if canWork();
+    }
+    // Contracts and settings: everyone can read (staff pick a contract on a load), only admin changes.
+    match /grain_contracts/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /grain_settings/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    // Prices: admin only, never visible to staff or family.
+    match /grain_pricing/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---- Chemical Costs ----
+    // Product names + label facts: everyone can read (spray safety), admin edits.
+    match /chem_products/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /chem_labels/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    // Purchases and costs: admin only.
+    match /chem_purchases/{id} {
+      allow read, write: if isAdmin();
+    }
+
     // Machinery register + service history.
     match /machines/{id} {
       allow read: if isMember();

@@ -8,7 +8,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs,
-  query, where, orderBy, serverTimestamp
+  query, where, orderBy, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const fb = initializeApp(firebaseConfig);
@@ -174,6 +174,8 @@ async function renderHome() {
   app.innerHTML = `<h1>G'day ${esc(me.name)}</h1><p class="muted">Everything for running Gunnadoo Grain, in one spot.</p>
     <h2>Farm apps</h2><div class="tiles" id="tiles"></div>`;
   const builtIn = [
+    { icon: "🌾", title: "Harvest Grain Tracker", desc: me.role === "admin" ? "Loads, contracts, payments and totals" : "Log loads into silos, bags and receival sites", href: "grain.html" },
+    { icon: "🧪", title: me.role === "admin" ? "Chemical Costs & Labels" : "Chemical Labels", desc: me.role === "admin" ? "Chemical spend, invoices and label facts" : "Label facts, rates and withholding periods", href: "chemicals.html" },
     { icon: "🔧", title: "Machinery", desc: "Machines, service records, parts and manuals", href: "#/machines" },
     { icon: "🗺️", title: "Paddock maps", desc: "Paddock boundaries and crop types", href: "#/maps", soon: true },
   ];
@@ -341,7 +343,9 @@ function serviceDialog(machineId) {
 async function renderAdmin(tab) {
   app.innerHTML = `<a class="back" href="#/">← Home</a><h1>Admin</h1>
   <nav class="tabs"><a href="#/admin/people" class="${tab === "people" ? "on" : ""}">People & logins</a>
-  <a href="#/admin/links" class="${tab === "links" ? "on" : ""}">Homepage links</a></nav><div id="adminBody"></div>`;
+  <a href="#/admin/links" class="${tab === "links" ? "on" : ""}">Homepage links</a>
+  <a href="#/admin/import" class="${tab === "import" ? "on" : ""}">Import data</a></nav><div id="adminBody"></div>`;
+  if (tab === "import") return adminImport();
   return tab === "links" ? adminLinks() : adminPeople();
 }
 
@@ -410,16 +414,7 @@ async function adminLinks() {
   const tiles = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
   const list = document.getElementById("lList");
   if (!tiles.length) {
-    list.innerHTML = `<div class="card"><p style="margin-top:0">No links yet.</p>
-      <button class="btn ghost" id="seed">Add the Grain Tracker and Chemical Costs links</button>
-      <p class="muted" style="margin-bottom:0;font-size:.85rem">These two still live in Claude for now, so they'll only open for people signed in to Claude with access to them. Both start as admin-only.</p></div>`;
-    document.getElementById("seed").onclick = async () => {
-      await addDoc(collection(db, "tiles"), { icon: "🌾", title: "Harvest Grain Tracker", desc: "Log loads to silos and grain bags",
-        url: "https://claude.ai/artifact/3jBAYuFBjARj6sRmSdpjvF", roles: ["admin"], order: 1 });
-      await addDoc(collection(db, "tiles"), { icon: "🧪", title: "Chemical Costs", desc: "Chemical cost master list",
-        url: "https://claude.ai/artifact/LMgLvFk5dVBNkYfMJzFzFc", roles: ["admin"], order: 2 });
-      toast("Links added"); adminLinks();
-    };
+    list.innerHTML = `<div class="card muted">No extra links yet. Grain Tracker, Chemicals and Machinery are built in, so add anything else here (weather, BOM radar, GrainCorp, bank, etc).</div>`;
     return;
   }
   list.innerHTML = tiles.map((t) => `<div class="card item"><div><h3>${esc(t.icon || "🔗")} ${esc(t.title)}</h3>
@@ -460,5 +455,47 @@ function linkDialog(t = {}) {
       if (t.id) await setDoc(doc(db, "tiles", t.id), data); else await addDoc(collection(db, "tiles"), data);
       dlg.close(); toast("Saved"); adminLinks();
     } catch (ex) { dlg.querySelector("#lErr").textContent = friendlyError(ex); }
+  };
+}
+
+// ---------- admin: import data file ----------
+const IMPORTABLE = /^(grain_(deliveries|outloads|contracts|pricing|lists|settings)|chem_(products|purchases|labels)|machines)$/;
+function adminImport() {
+  const body = document.getElementById("adminBody");
+  body.innerHTML = `<div class="card"><h3>Import a data file</h3>
+    <p class="muted" style="margin-top:0">Use this to bring in a data file Claude gives you (for example your existing grain loads and chemical list). Records with the same ID are updated, not doubled up, so it's safe to run twice.</p>
+    <p class="muted">Keep data files on your own computer. Never upload them to GitHub, because they can contain prices.</p>
+    <input type="file" id="impFile" accept=".json,application/json">
+    <div id="impInfo" style="margin-top:12px"></div></div>`;
+  document.getElementById("impFile").onchange = async (e) => {
+    const info = document.getElementById("impInfo");
+    const f = e.target.files[0]; if (!f) return;
+    let data;
+    try { data = JSON.parse(await f.text()); } catch { info.innerHTML = `<p class="err">That file isn't a valid data file.</p>`; return; }
+    const cols = Object.keys(data).filter((k) => IMPORTABLE.test(k) && data[k] && typeof data[k] === "object");
+    const skipped = Object.keys(data).filter((k) => !cols.includes(k));
+    if (!cols.length) { info.innerHTML = `<p class="err">Nothing in that file this site knows how to import.</p>`; return; }
+    info.innerHTML = `<p>This file has:</p><ul>${cols.map((c) => `<li>${esc(c)}: ${Object.keys(data[c]).length} records</li>`).join("")}</ul>
+      ${skipped.length ? `<p class="muted">Ignored: ${skipped.map(esc).join(", ")}</p>` : ""}
+      <button class="btn" id="impGo">Import now</button> <span class="muted" id="impMsg"></span>`;
+    document.getElementById("impGo").onclick = async () => {
+      const btn = document.getElementById("impGo"), msg = document.getElementById("impMsg");
+      btn.disabled = true;
+      const writes = [];
+      cols.forEach((c) => Object.entries(data[c]).forEach(([id, d]) => writes.push([c, id, d])));
+      try {
+        for (let i = 0; i < writes.length; i += 400) {
+          const batch = writeBatch(db);
+          writes.slice(i, i + 400).forEach(([c, id, d]) => batch.set(doc(db, c, id), d));
+          await batch.commit();
+          msg.textContent = `Saved ${Math.min(i + 400, writes.length)} of ${writes.length}…`;
+        }
+        msg.textContent = `Done: ${writes.length} records imported.`;
+        toast("Import finished");
+      } catch (ex) {
+        btn.disabled = false;
+        msg.innerHTML = `<span class="err">${esc(friendlyError(ex))} Check the latest security rules are published in Firebase.</span>`;
+      }
+    };
   };
 }

@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en-AU"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gunnadoo Chemical Costs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta name="theme-color" content="#39938E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gunnadoo">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>.hublink{display:inline-block;margin:4px 0 6px;font-weight:600;text-decoration:none;color:#39938E;font-family:system-ui,-apple-system,sans-serif}</style>
+<style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+</head><body>
+
+<style>
+/* Layout: one working column — summary strip, toolbar, product ledger; invoice scan and product detail open as sheets over it */
+:root{
+  --bg:#f3f5f1; --panel:#ffffff; --ink:#1d261f; --muted:#5d6b60; --line:#d8ded5;
+  --accent:#2f6b4f; --accent-ink:#ffffff; --accent-soft:#e2eee6;
+  --warn:#9a6400; --warn-soft:#fbf0d9; --bad:#a3352b; --bad-soft:#f8e3e0;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a16; --panel:#1c241f; --ink:#e6ece6; --muted:#9aa89d; --line:#2e3a32;
+  --accent:#6fbf93; --accent-ink:#0f1a13; --accent-soft:#213428;
+  --warn:#e4b155; --warn-soft:#3a2f17; --bad:#ec8a80; --bad-soft:#3d211e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a16; --panel:#1c241f; --ink:#e6ece6; --muted:#9aa89d; --line:#2e3a32;
+  --accent:#6fbf93; --accent-ink:#0f1a13; --accent-soft:#213428;
+  --warn:#e4b155; --warn-soft:#3a2f17; --bad:#ec8a80; --bad-soft:#3d211e; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1080px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;margin:0;text-wrap:balance}
+h1{font-size:2rem;line-height:1.05}
+h2{font-size:1.4rem}
+h3{font-size:1.15rem}
+.eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.strip>div{background:var(--panel);padding:12px 14px;min-width:0}
+.strip .v{font-family:var(--f-mono);font-size:1.25rem;font-weight:500;margin-top:2px;overflow-wrap:anywhere}
+@media (max-width:640px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toolbar .grow{flex:1 1 200px;min-width:0}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+input:focus-visible,select:focus-visible,button:focus-visible,textarea:focus-visible,.row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{color:var(--bad);border-color:var(--bad)}
+button.link{border:0;background:none;padding:4px 6px;color:var(--accent);font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+.ledger{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.lhead,.row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,2.4fr) 88px 108px 96px;gap:12px;align-items:center;padding:10px 14px}
+.lhead{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);background:var(--bg)}
+.lhead button{all:unset;cursor:pointer}
+.lhead button:focus-visible{outline:2px solid var(--accent)}
+.lhead .r,.row .r{text-align:right}
+.row{border-bottom:1px solid var(--line);cursor:pointer}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--accent-soft)}
+.pname{font-weight:600;overflow-wrap:anywhere}
+.pact{font-size:.86rem;color:var(--muted);overflow-wrap:anywhere}
+.chip{display:inline-block;font-size:.7rem;font-weight:600;padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+@media (max-width:700px){
+  .lhead{display:none}
+  .row{grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+  .row .c-act{grid-column:1/-1;order:3}
+  .row .c-qty{display:none}
+  .row .c-avg{order:2;text-align:right}
+  .row .c-total{order:1;text-align:right}
+  .row .c-name{order:0}
+}
+.row .c-name{min-width:0}
+details.notbought{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px}
+details.notbought summary{cursor:pointer;font-weight:600}
+.nb-list{display:grid;gap:6px;margin-top:10px}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.banner{padding:10px 14px;border-radius:var(--r);background:var(--warn-soft);color:var(--warn);font-weight:500}
+.banner.bad{background:var(--bad-soft);color:var(--bad)}
+.banner.ok{background:var(--accent-soft);color:var(--accent)}
+/* sheets */
+.scrim{position:fixed;inset:0;background:rgb(0 0 0 / .45);z-index:40;display:flex;justify-content:flex-end}
+.sheet{background:var(--bg);width:min(760px,100%);height:100%;overflow-y:auto;padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(40px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:14px;align-content:start}
+.sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+label.f{display:grid;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted);min-width:0}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:22px;text-align:center;display:grid;gap:8px;justify-items:center;background:var(--panel)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.thumbs img{width:84px;height:84px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.line{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:10px;background:var(--panel)}
+.line.flag{border-color:var(--warn);box-shadow:inset 4px 0 0 var(--warn)}
+.line.off{opacity:.55}
+.line-top{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.line-desc{font-weight:600;overflow-wrap:anywhere;min-width:0}
+.hist{display:grid}
+.hrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.hrow:last-child{border-bottom:0}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:60;font-weight:600;max-width:calc(100% - 32px)}
+footer{font-size:.82rem;color:var(--muted);display:grid;gap:4px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 14px;color:var(--muted);font-family:var(--f-display);font-size:1.1rem;letter-spacing:.02em}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.lab{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;min-width:0}
+.lab-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 14px;align-items:flex-start}
+.lab-top>div{min-width:0}
+.lab dl{display:grid;grid-template-columns:130px minmax(0,1fr);gap:6px 14px;margin:0;font-size:.92rem}
+.lab dt{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+.lab dd{margin:0;overflow-wrap:anywhere;white-space:pre-line}
+@media (max-width:520px){.lab dl{grid-template-columns:minmax(0,1fr)}.lab dd{margin-bottom:6px}}
+a.btnlink{display:inline-block;font-weight:600;border-radius:6px;padding:7px 12px;background:var(--accent);color:var(--accent-ink);text-decoration:none;white-space:nowrap}
+a.btnlink:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.lab .src{font-size:.82rem;color:var(--muted)}
+</style>
+
+<div class="wrap">
+<a class="hublink" href="./">← Command Centre</a>
+  <header class="top">
+    <div>
+      <div class="eyebrow">Gunnadoo Grain · Culcairn</div>
+      <h1>Chemical Costs</h1>
+    </div>
+    <div class="toolbar">
+      <button class="primary" id="btnScan" hidden>Scan invoice</button>
+      <button id="btnManual">Add purchase</button>
+      <button id="btnExport" hidden>Download Excel</button>
+    </div>
+  </header>
+
+  <div id="banner" hidden></div>
+
+  <nav class="tabs" role="tablist" aria-label="View">
+    <button role="tab" id="tabCosts" aria-selected="true">Costs</button>
+    <button role="tab" id="tabLabels" aria-selected="false">Labels</button>
+  </nav>
+
+  <div id="viewLabels" hidden style="display:grid;gap:14px">
+    <div class="banner">Label facts below were copied from each label on the date shown and can be misread or go out of date. Always open the label and check it before you mix or spray.</div>
+    <div class="toolbar">
+      <div class="grow"><input id="lq" type="search" placeholder="Search product, active, crop or APVMA number" aria-label="Search labels"></div>
+      <div style="flex:0 1 200px"><select id="lfilter" aria-label="Show">
+        <option value="all">All products</option>
+        <option value="bought">Bought only</option>
+        <option value="missing">No label found</option>
+      </select></div>
+    </div>
+    <div id="labelList" style="display:grid;gap:10px"><div class="empty">Loading labels…</div></div>
+  </div>
+
+  <div id="viewCosts" style="display:grid;gap:18px">
+  <section class="strip" aria-label="Summary">
+    <div><div class="eyebrow">Total spend, ex GST</div><div class="v" id="sTotal">–</div></div>
+    <div><div class="eyebrow">Products bought</div><div class="v" id="sProducts">–</div></div>
+    <div><div class="eyebrow">Purchase lines</div><div class="v" id="sLines">–</div></div>
+    <div><div class="eyebrow">Latest invoice</div><div class="v" id="sLatest" style="font-size:1rem">–</div></div>
+  </section>
+
+  <div class="toolbar">
+    <div class="grow"><input id="q" type="search" placeholder="Search product or active ingredient" aria-label="Search"></div>
+    <div style="flex:0 1 170px"><select id="season" aria-label="Season"></select></div>
+    <div style="flex:0 1 190px"><select id="sort" aria-label="Sort">
+      <option value="name">Sort: name</option>
+      <option value="total">Sort: biggest spend</option>
+      <option value="avg">Sort: dearest per unit</option>
+      <option value="recent">Sort: most recently bought</option>
+    </select></div>
+  </div>
+
+  <section class="ledger" aria-label="Products">
+    <div class="lhead">
+      <div>Product</div><div>Active ingredient</div><div class="r">Qty</div><div class="r">Total</div><div class="r">Avg / unit</div>
+    </div>
+    <div id="rows"><div class="empty">Loading your chemical list…</div></div>
+  </section>
+
+  <details class="notbought" id="nbWrap" hidden>
+    <summary id="nbSum">On the spray list, not bought</summary>
+    <div class="nb-list" id="nbList"></div>
+  </details>
+
+  <footer>
+    <div>All dollar figures are ex GST. Avg / unit is total cost ÷ total quantity across every purchase in the selected season.</div>
+    <div>2025 figures were loaded as one opening line per product from Chemical_Costs_2025_with_Actives.xlsx. New invoices are added as their own lines.</div>
+    <div>Active ingredients tagged <span class="chip warn" style="margin:0">unconfirmed</span> have not been checked against a label.</div>
+  </footer>
+  </div>
+</div>
+
+<div id="sheetHost"></div>
+<input type="file" id="fileIn" accept="image/*" multiple hidden>
+
+<script type="module">
+import {requireMember,makeDb,downloads as dlHelper} from "./core.js";
+(async () => {
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = n => (n<0?"-":"") + "$" + Math.abs(n).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0 = n => "$" + Math.round(n).toLocaleString("en-AU");
+const qtyFmt = n => (+n).toLocaleString("en-AU",{maximumFractionDigits:2});
+const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60) || "product";
+const today = () => new Date().toISOString().slice(0,10);
+const seasonOf = p => p.season || (p.date ? p.date.slice(0,4) : "");
+
+let isAdm=false;
+let db=null, sample=null, downloads=null, imgLimits=null;
+let products=new Map(), purchases=[];
+let gotP=false, gotPu=false;
+const state={q:"",season:"all",sort:"name"};
+try{ const s=JSON.parse(localStorage.getItem("chemview")||"{}"); Object.assign(state,{season:s.season||"all",sort:s.sort||"name"}); }catch(e){}
+$("#sort").value=state.sort;
+
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+function banner(msg,kind=""){ const b=$("#banner"); if(!msg){b.hidden=true;return;} b.className="banner "+kind; b.textContent=msg; b.hidden=false; }
+function saveView(){ try{localStorage.setItem("chemview",JSON.stringify({season:state.season,sort:state.sort}));}catch(e){} }
+
+// ---------- aggregate ----------
+function filteredPurchases(){ return state.season==="all" ? purchases : purchases.filter(p=>seasonOf(p)===state.season); }
+function aggregate(){
+  const agg=new Map();
+  for(const p of filteredPurchases()){
+    const a=agg.get(p.productId)||{qty:0,total:0,n:0,last:""};
+    a.qty+=+p.qty||0; a.total+=+p.totalExGst||0; a.n++; if((p.date||"")>a.last) a.last=p.date||"";
+    agg.set(p.productId,a);
+  }
+  return agg;
+}
+
+function render(){
+  if(!gotP||!gotPu) return;
+  // seasons
+  const seasons=[...new Set(purchases.map(seasonOf).filter(Boolean))].sort().reverse();
+  const sel=$("#season"); const cur=state.season;
+  sel.innerHTML=`<option value="all">All seasons</option>`+seasons.map(s=>`<option value="${esc(s)}">${esc(s)} season</option>`).join("");
+  sel.value=seasons.includes(cur)?cur:"all"; state.season=sel.value;
+
+  const agg=aggregate();
+  const fp=filteredPurchases();
+  const total=fp.reduce((s,p)=>s+(+p.totalExGst||0),0);
+  $("#sTotal").textContent=money0(total);
+  $("#sProducts").textContent=[...agg.keys()].filter(k=>products.has(k)).length;
+  $("#sLines").textContent=fp.length;
+  const inv=purchases.filter(p=>p.source==="invoice"&&p.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  $("#sLatest").textContent=inv?`${inv.date}${inv.supplier?" · "+inv.supplier:""}`:"None scanned yet";
+
+  if(products.size===0){
+    $("#rows").innerHTML=`<div class="empty">No products yet. Scan an invoice or add a purchase to start the list.</div>`;
+    $("#nbWrap").hidden=true; return;
+  }
+  const q=state.q.trim().toLowerCase();
+  let list=[...products.values()].filter(p=>agg.has(p.id));
+  if(q) list=list.filter(p=>(p.name+" "+(p.active||"")).toLowerCase().includes(q));
+  const A=id=>agg.get(id);
+  const sorters={
+    name:(a,b)=>a.name.localeCompare(b.name),
+    total:(a,b)=>A(b.id).total-A(a.id).total,
+    avg:(a,b)=>(A(b.id).total/(A(b.id).qty||1))-(A(a.id).total/(A(a.id).qty||1)),
+    recent:(a,b)=>(A(b.id).last||"").localeCompare(A(a.id).last||"")||a.name.localeCompare(b.name)
+  };
+  list.sort(sorters[state.sort]||sorters.name);
+  $("#rows").innerHTML = list.length ? list.map(p=>{
+    const a=A(p.id); const avg=a.qty?a.total/a.qty:0;
+    return `<div class="row" tabindex="0" role="button" data-id="${esc(p.id)}">
+      <div class="c-name"><span class="pname">${esc(p.name)}</span>${a.n>1?`<span class="chip ok">${a.n} buys</span>`:""}</div>
+      <div class="c-act pact">${esc(p.active||"—")}${p.unconfirmed?`<span class="chip warn">unconfirmed</span>`:""}</div>
+      <div class="c-qty r num">${qtyFmt(a.qty)} ${esc(p.unit)}</div>
+      <div class="c-total r num">${money(a.total)}</div>
+      <div class="c-avg r num muted">${money(avg)}/${esc(p.unit)}</div>
+    </div>`;}).join("") : `<div class="empty">Nothing matches “${esc(state.q)}”.</div>`;
+
+  const nb=[...products.values()].filter(p=>!purchases.some(x=>x.productId===p.id)).sort((a,b)=>a.name.localeCompare(b.name));
+  $("#nbWrap").hidden=!nb.length;
+  $("#nbSum").textContent=`On the spray list, not bought (${nb.length})`;
+  $("#nbList").innerHTML=nb.map(p=>`<div class="row" tabindex="0" role="button" data-id="${esc(p.id)}" style="padding:6px 0;border:0;grid-template-columns:minmax(0,1fr)"><div><span class="pname">${esc(p.name)}</span> <span class="pact">· ${esc(p.active||"—")}</span></div></div>`).join("");
+}
+
+document.addEventListener("click",e=>{ const r=e.target.closest(".row[data-id]"); if(r) openProduct(r.dataset.id); });
+document.addEventListener("keydown",e=>{ if((e.key==="Enter"||e.key===" ")&&e.target.matches?.(".row[data-id]")){e.preventDefault();openProduct(e.target.dataset.id);} if(e.key==="Escape") closeSheet(); });
+$("#q").addEventListener("input",e=>{state.q=e.target.value;render();});
+$("#season").addEventListener("change",e=>{state.season=e.target.value;saveView();render();});
+$("#sort").addEventListener("change",e=>{state.sort=e.target.value;saveView();render();});
+
+// ---------- sheets ----------
+function openSheet(html){
+  $("#sheetHost").innerHTML=`<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
+  $("#scrim").addEventListener("click",e=>{ if(e.target.id==="scrim") closeSheet(); });
+  return $("#sheetHost .sheet");
+}
+function closeSheet(){ $("#sheetHost").innerHTML=""; }
+window.__close=closeSheet;
+
+function productOptions(selected){
+  const opts=[...products.values()].sort((a,b)=>a.name.localeCompare(b.name))
+    .map(p=>`<option value="${esc(p.id)}"${p.id===selected?" selected":""}>${esc(p.name)} (${esc(p.unit)})</option>`).join("");
+  return `<option value="">— choose product —</option><option value="__new"${selected==="__new"?" selected":""}>+ New product…</option><option value="__skip"${selected==="__skip"?" selected":""}>Skip this line (not a chemical)</option>${opts}`;
+}
+
+// ---------- product detail ----------
+function openProduct(id){
+  const p=products.get(id); if(!p) return;
+  const hist=purchases.filter(x=>x.productId===id).sort((a,b)=>(b.date||"0").localeCompare(a.date||"0"));
+  const q=hist.reduce((s,x)=>s+(+x.qty||0),0), t=hist.reduce((s,x)=>s+(+x.totalExGst||0),0);
+  const sh=openSheet(`
+    <div class="sheet-head"><div><div class="eyebrow">Product</div><h2>${esc(p.name)}</h2></div><button onclick="__close()">Close</button></div>
+    <div class="card">
+      <div class="grid2">
+        <label class="f">Name<input id="pName" value="${esc(p.name)}"></label>
+        <label class="f">Unit<select id="pUnit"><option${p.unit==="L"?" selected":""}>L</option><option${p.unit==="kg"?" selected":""}>kg</option></select></label>
+      </div>
+      <label class="f">Active ingredient<input id="pActive" value="${esc(p.active||"")}"></label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:.9rem"><input type="checkbox" id="pUnconf" style="width:auto"${p.unconfirmed?" checked":""}> Active ingredient not yet checked against the label</label>
+      <div><button class="primary" id="pSave">Save product</button></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>Purchases</h3><span class="num muted">${qtyFmt(q)} ${esc(p.unit)} · ${money(t)}${q?` · ${money(t/q)}/${esc(p.unit)}`:""} (all seasons)</span></div>
+      <div class="hist">${hist.length?hist.map(h=>`
+        <div class="hrow" data-pid="${esc(h.id)}">
+          <div style="min-width:0"><div style="font-weight:600">${h.source==="opening"?"2025 opening total (from spreadsheet)":esc(h.date||"No date")}${h.supplier?` · ${esc(h.supplier)}`:""}</div>
+            <div class="muted" style="font-size:.85rem">${h.invoiceNo?`Invoice ${esc(h.invoiceNo)} · `:""}${h.packSize&&h.packs?`${qtyFmt(h.packs)} × ${qtyFmt(h.packSize)} ${esc(p.unit)} · `:""}${h.source==="invoice"?"scanned":h.source==="manual"?"entered by hand":"spreadsheet"}${h.note?` · ${esc(h.note)}`:""}</div></div>
+          <div class="r num" style="text-align:right">${qtyFmt(h.qty)} ${esc(p.unit)}<br>${money(+h.totalExGst||0)}</div>
+          <div style="grid-column:1/-1;display:flex;gap:4px"><button class="link" data-edit="${esc(h.id)}">Edit</button><button class="link" style="color:var(--bad)" data-del="${esc(h.id)}">Delete</button></div>
+        </div>`).join(""):`<div class="muted">No purchases recorded.</div>`}</div>
+    </div>
+    ${hist.length?"":`<div><button class="danger" id="pDelete">Remove product from list</button></div>`}`);
+  sh.querySelector("#pSave").onclick=async()=>{
+    const upd={name:sh.querySelector("#pName").value.trim()||p.name,unit:sh.querySelector("#pUnit").value,active:sh.querySelector("#pActive").value.trim(),unconfirmed:sh.querySelector("#pUnconf").checked};
+    try{ await db.collection("products").doc(id).update(upd); toast("Product saved"); closeSheet(); }catch(e){ toast("Couldn't save: "+(e.message||e.code)); }
+  };
+  const del=sh.querySelector("#pDelete");
+  if(del) del.onclick=async()=>{
+    if(del.dataset.armed!=="1"){del.dataset.armed="1";del.textContent="Tap again to remove";return;}
+    try{ await db.collection("products").doc(id).delete(); toast("Product removed"); closeSheet(); }catch(e){ toast("Couldn't remove: "+(e.message||e.code)); }
+  };
+  sh.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
+    if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return;}
+    try{ await db.collection("purchases").doc(b.dataset.del).delete(); toast("Purchase deleted"); openProduct(id); }catch(e){ toast("Couldn't delete: "+(e.message||e.code)); }
+  });
+  sh.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{
+    const h=purchases.find(x=>x.id===b.dataset.edit); if(!h) return;
+    openEntry({mode:"edit",purchase:h});
+  });
+}
+
+// ---------- entry / review ----------
+// line: {description, productId, newName, newUnit, newActive, packSize, packs, qty, total, include, flag, note}
+let review=null;
+function openEntry({mode, header={}, lines=[], purchase=null, warnings=[]}){
+  if(mode==="edit"){
+    const p=products.get(purchase.productId);
+    header={date:purchase.date||"",supplier:purchase.supplier||"",invoiceNo:purchase.invoiceNo||""};
+    lines=[{description:p?.name||"",productId:purchase.productId,packSize:purchase.packSize||"",packs:purchase.packs||"",qty:purchase.qty,total:purchase.totalExGst,include:true,note:purchase.note||""}];
+  }
+  if(mode==="manual" && !lines.length) lines=[{description:"",productId:"",packSize:"",packs:"",qty:"",total:"",include:true}];
+  review={mode,header:{date:today(),supplier:"",invoiceNo:"",...header},lines,purchase,warnings};
+  drawReview();
+}
+function lineHtml(l,i){
+  const p=products.get(l.productId); const unit=l.productId==="__new"?(l.newUnit||"L"):(p?.unit||"");
+  const skip=l.productId==="__skip"||!l.include;
+  return `<div class="line${l.flag?" flag":""}${skip?" off":""}" data-i="${i}">
+    <div class="line-top">
+      <div style="min-width:0">${l.description?`<div class="line-desc">${esc(l.description)}</div>`:""}
+        ${l.flag?`<div style="color:var(--warn);font-size:.85rem;font-weight:600">Check this: ${esc(l.flag)}</div>`:""}</div>
+      ${review.mode==="edit"?"":`<button class="link" data-rm="${i}" style="color:var(--bad)">Remove</button>`}
+    </div>
+    <label class="f">Product<select data-k="productId">${productOptions(l.productId)}</select></label>
+    ${l.productId==="__new"?`<div class="grid2">
+      <label class="f">New product name<input data-k="newName" value="${esc(l.newName??l.description??"")}"></label>
+      <label class="f">Unit<select data-k="newUnit"><option${unit==="L"?" selected":""}>L</option><option${unit==="kg"?" selected":""}>kg</option></select></label>
+      <label class="f" style="grid-column:1/-1">Active ingredient (from the label)<input data-k="newActive" value="${esc(l.newActive||"")}"></label></div>`:""}
+    ${l.productId==="__skip"?"":`<div class="grid2">
+      <label class="f">Pack size (${esc(unit||"unit")})<input data-k="packSize" inputmode="decimal" value="${esc(l.packSize??"")}"></label>
+      <label class="f">No. of packs<input data-k="packs" inputmode="decimal" value="${esc(l.packs??"")}"></label>
+      <label class="f">Total qty (${esc(unit||"unit")})<input data-k="qty" inputmode="decimal" value="${esc(l.qty??"")}"></label>
+      <label class="f">Line total $ ex GST<input data-k="total" inputmode="decimal" value="${esc(l.total??"")}"></label>
+    </div>
+    <div class="muted num" style="font-size:.85rem" data-avg>${avgText(l,unit)}</div>`}
+    ${l.note?`<div class="muted" style="font-size:.85rem">${esc(l.note)}</div>`:""}
+  </div>`;
+}
+function avgText(l,unit){ const q=parseFloat(l.qty),t=parseFloat(l.total); return q>0&&t>=0?`= ${money(t/q)} per ${unit||"unit"}`:"Enter quantity and total to see the price per unit"; }
+function drawReview(){
+  const r=review; const isEdit=r.mode==="edit";
+  const dupe=r.header.invoiceNo && purchases.some(p=>p.invoiceNo&&p.invoiceNo.trim().toLowerCase()===r.header.invoiceNo.trim().toLowerCase()&&(!isEdit||p.id!==r.purchase.id));
+  const sh=openSheet(`
+    <div class="sheet-head"><div><div class="eyebrow">${r.mode==="invoice"?"Check what was read from the invoice":isEdit?"Edit purchase":"New purchase"}</div><h2>${r.mode==="invoice"?"Review invoice":isEdit?"Edit purchase":"Add purchase"}</h2></div><button onclick="__close()">Cancel</button></div>
+    ${r.mode==="invoice"?`<div class="banner">Nothing is saved until you press Save. Compare each line against the invoice, especially quantities and totals. Lines marked “Check this” were unclear.</div>`:""}
+    ${r.warnings.map(w=>`<div class="banner">${esc(w)}</div>`).join("")}
+    ${dupe?`<div class="banner bad">Invoice ${esc(r.header.invoiceNo)} is already in the tracker. Saving again will double-count it.</div>`:""}
+    <div class="card"><div class="grid2">
+      <label class="f">Invoice date<input type="date" id="hDate" value="${esc(r.header.date)}"></label>
+      <label class="f">Supplier<input id="hSupplier" value="${esc(r.header.supplier)}"></label>
+      <label class="f">Invoice no.<input id="hInv" value="${esc(r.header.invoiceNo)}"></label>
+    </div></div>
+    <div id="lines" style="display:grid;gap:10px">${r.lines.map(lineHtml).join("")}</div>
+    ${isEdit?"":`<div><button id="addLine">+ Add another line</button></div>`}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="primary" id="saveAll">${isEdit?"Save changes":"Save to tracker"}</button><span class="muted" id="saveMsg"></span></div>`);
+  sh.querySelector("#hDate").onchange=e=>r.header.date=e.target.value;
+  sh.querySelector("#hSupplier").oninput=e=>r.header.supplier=e.target.value;
+  sh.querySelector("#hInv").onchange=e=>{r.header.invoiceNo=e.target.value;drawReviewKeepScroll();};
+  sh.querySelector("#lines").addEventListener("input",e=>{
+    const box=e.target.closest(".line"); const k=e.target.dataset.k; if(!box||!k) return;
+    const l=r.lines[+box.dataset.i]; l[k]=e.target.value;
+    if(k==="packSize"||k==="packs"){ const ps=parseFloat(l.packSize),pk=parseFloat(l.packs); if(ps>0&&pk>0){ l.qty=+(ps*pk).toFixed(3); box.querySelector('[data-k="qty"]').value=l.qty; } }
+    const a=box.querySelector("[data-avg]"); if(a){ const p=products.get(l.productId); a.textContent=avgText(l,l.productId==="__new"?(l.newUnit||"L"):p?.unit); }
+  });
+  sh.querySelector("#lines").addEventListener("change",e=>{
+    const box=e.target.closest(".line"); const k=e.target.dataset.k; if(!box) return;
+    const l=r.lines[+box.dataset.i];
+    if(k==="productId"||k==="newUnit"){ l[k]=e.target.value; if(k==="productId"&&e.target.value!=="__skip") l.include=true; drawReviewKeepScroll(); }
+  });
+  sh.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ r.lines.splice(+b.dataset.rm,1); drawReviewKeepScroll(); });
+  const add=sh.querySelector("#addLine"); if(add) add.onclick=()=>{ r.lines.push({description:"",productId:"",include:true}); drawReviewKeepScroll(); };
+  sh.querySelector("#saveAll").onclick=saveReview;
+}
+function drawReviewKeepScroll(){ const s=$("#sheetHost .sheet")?.scrollTop||0; drawReview(); const n=$("#sheetHost .sheet"); if(n) n.scrollTop=s; }
+
+async function saveReview(){
+  const r=review; const msg=$("#saveMsg"); const btn=$("#saveAll");
+  const lines=r.lines.filter(l=>l.productId!=="__skip"&&l.include!==false);
+  const problems=[];
+  lines.forEach((l,i)=>{
+    const n=r.lines.indexOf(l)+1;
+    if(!l.productId) problems.push(`line ${n}: choose a product`);
+    if(l.productId==="__new"&&!String(l.newName??l.description??"").trim()) problems.push(`line ${n}: name the new product`);
+    if(!(parseFloat(l.qty)>0)) problems.push(`line ${n}: quantity`);
+    if(!(parseFloat(l.total)>=0)||l.total===""||l.total==null) problems.push(`line ${n}: line total`);
+  });
+  if(!lines.length) problems.push("no lines to save");
+  if(problems.length){ msg.textContent="Fix before saving — "+problems.join("; "); msg.style.color="var(--bad)"; return; }
+  btn.disabled=true; msg.style.color=""; msg.innerHTML=`<span class="spin"></span> Saving…`;
+  try{
+    for(const l of lines){
+      let pid=l.productId;
+      if(pid==="__new"){
+        const name=String(l.newName??l.description).trim();
+        let id=slug(name); let k=2; while(products.has(id)) id=slug(name)+"-"+(k++);
+        await db.collection("products").doc(id).set({name,unit:l.newUnit||"L",active:(l.newActive||"").trim(),unconfirmed:!(l.newActive||"").trim(),createdAt:new Date().toISOString()});
+        products.set(id,{id,name,unit:l.newUnit||"L"}); pid=id;
+      }
+      const body={productId:pid,date:r.header.date||"",season:(r.header.date||"").slice(0,4),supplier:r.header.supplier.trim(),invoiceNo:r.header.invoiceNo.trim(),
+        packSize:parseFloat(l.packSize)||null,packs:parseFloat(l.packs)||null,qty:+parseFloat(l.qty).toFixed(3),totalExGst:+parseFloat(l.total).toFixed(2),note:l.note||""};
+      if(r.mode==="edit"){
+        const old=r.purchase; if(old.source==="opening"){ body.season=old.season||"2025"; body.date=old.date||r.header.date||""; }
+        await db.collection("purchases").doc(old.id).update(body);
+      } else {
+        await db.collection("purchases").add({...body,source:r.mode==="invoice"?"invoice":"manual",createdAt:new Date().toISOString()});
+      }
+    }
+    toast(r.mode==="edit"?"Purchase updated":`Saved ${lines.length} line${lines.length>1?"s":""}`); closeSheet();
+  }catch(e){
+    btn.disabled=false; msg.style.color="var(--bad)";
+    msg.textContent=(e.code==="permission_denied"||e.code==="permission-denied")?"You don't have permission to change this tracker. Ask the owner for edit access.":"Couldn't save: "+(e.message||e.code);
+  }
+}
+
+// ---------- invoice scanning ----------
+$("#btnManual").onclick=()=>{ if(!db) return toast("The tracker is still connecting"); openEntry({mode:"manual"}); };
+$("#btnScan").onclick=()=>openScan();
+let scanFiles=[];
+function openScan(){
+  scanFiles=[];
+  const sh=openSheet(`
+    <div class="sheet-head"><div><div class="eyebrow">Invoice photos</div><h2>Scan invoice</h2></div><button onclick="__close()">Cancel</button></div>
+    <div class="drop" id="drop">
+      <div style="font-weight:600">Take a photo or choose invoice images</div>
+      <div class="muted" style="font-size:.88rem">One invoice at a time. Several pages are fine${imgLimits?` (up to ${imgLimits.maxCount})`:""}. Flat, well lit and the whole page in frame reads best.</div>
+      <button class="primary" id="pick">Choose photos</button>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+    <div class="muted" style="font-size:.85rem">The photos are sent to Claude to read. You check every line before anything is saved.</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="primary" id="read" disabled>Read invoice</button><span id="readMsg" class="muted"></span></div>`);
+  const fin=$("#fileIn"); if(imgLimits?.mediaTypes?.length) fin.accept=imgLimits.mediaTypes.join(",");
+  sh.querySelector("#pick").onclick=()=>{ fin.value=""; fin.click(); };
+  const drop=sh.querySelector("#drop");
+  drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("over");});
+  drop.addEventListener("dragleave",()=>drop.classList.remove("over"));
+  drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("over");addFiles(e.dataTransfer.files);});
+  sh.querySelector("#read").onclick=readInvoice;
+}
+$("#fileIn").addEventListener("change",e=>addFiles(e.target.files));
+function addFiles(fl){
+  const max=imgLimits?.maxCount||10; const okTypes=imgLimits?.mediaTypes;
+  for(const f of fl){ if(okTypes&&!okTypes.includes(f.type)){ toast(`${f.name} isn't a supported image type`); continue; } if(scanFiles.length<max) scanFiles.push(f); }
+  const th=$("#thumbs"); if(!th) return;
+  th.innerHTML=""; scanFiles.forEach(f=>{ const im=document.createElement("img"); im.alt=f.name; im.src=URL.createObjectURL(f); th.appendChild(im); });
+  $("#read").disabled=!scanFiles.length;
+}
+
+function buildPrompt(){
+  const cat=[...products.values()].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`${p.id} | ${p.name} | ${p.unit} | ${p.active||""}`).join("\n");
+  return `You are reading a farm-supplies invoice for an Australian grain farm (Gunnadoo Grain). The attached image(s) are the pages of ONE invoice, in order.
+
+Extract every line item. Report only what is printed; never guess a number. If a value is unreadable or ambiguous, still give your best reading and explain it in "flag".
+
+For each line:
+- "description": the product description as printed.
+- "isChemical": true for crop chemicals, adjuvants, seed treatments, inoculants and fertiliser; false for freight, handling, delivery, levies, late fees, drum/container deposits, hardware, animal health, stock feed, oils/grease, poly pipe and anything else.
+- "packSize": size of one pack in the BASE unit (L for liquids, kg for solids). Convert: mL→L (÷1000), g→kg (÷1000), tonnes→kg (×1000). E.g. "20L" → 20, "15KG" → 15, "1 tonne" → 1000.
+- "unit": "L" or "kg".
+- "packs": number of packs/drums/bags. If the invoice gives the quantity already in L or kg (not packs), set packs to null and give qty directly.
+- "qty": total quantity in the base unit (= packSize × packs when both are known).
+- "lineTotalExGst": the line total EXCLUDING GST, in dollars. If the invoice shows only GST-inclusive line amounts, divide by 1.1 and say so in "flag".
+- "matchProductId": the id from the catalogue below if this is the same product (same brand/product name and same strength). Match brand names loosely (e.g. "CRUCIAL 600 20L" → the Nufarm Crucial 600 entry). Use null if it is not in the catalogue or you are not sure — do not force a match on a different strength.
+- "suggestedName": a clean product name if not matched (brand + strength, no pack size).
+- "flag": short note if anything is unclear, inconsistent (e.g. qty × unit price ≠ line total), or converted; otherwise "".
+
+Also give the header: "supplier", "invoiceNo", "date" as YYYY-MM-DD (Australian dates are DD/MM/YYYY), and "invoiceTotalExGst" if printed. Add any whole-invoice concern to "warnings" (e.g. "page 2 appears missing", "photo blurry at bottom").
+
+Catalogue (id | name | unit | active ingredient):
+${cat}
+
+Reply with JSON only, in exactly this shape:
+{"supplier":"","invoiceNo":"","date":"","invoiceTotalExGst":null,"warnings":[],"lines":[{"description":"","isChemical":true,"packSize":null,"unit":"L","packs":null,"qty":null,"lineTotalExGst":null,"matchProductId":null,"suggestedName":"","flag":""}]}`;
+}
+
+async function readInvoice(){
+  const btn=$("#read"), msg=$("#readMsg"); btn.disabled=true;
+  msg.innerHTML=`<span class="spin"></span> Reading the invoice — this can take up to a minute…`;
+  try{
+    const out=await sample.json(buildPrompt(),{images:scanFiles,modelTier:"complex",cache:false});
+    const warnings=Array.isArray(out.warnings)?out.warnings.map(String):[];
+    const lines=(out.lines||[]).map(x=>{
+      const matched=x.matchProductId&&products.has(x.matchProductId)?x.matchProductId:null;
+      const isChem=x.isChemical!==false;
+      const p=matched?products.get(matched):null;
+      const flags=[]; if(x.flag) flags.push(String(x.flag));
+      if(p&&x.unit&&p.unit!==x.unit) flags.push(`invoice reads as ${x.unit} but this product is tracked in ${p.unit}`);
+      return {description:String(x.description||""),productId:!isChem?"__skip":matched||"__new",newName:x.suggestedName||x.description||"",newUnit:x.unit==="kg"?"kg":"L",newActive:"",
+        packSize:x.packSize??"",packs:x.packs??"",qty:x.qty??(x.packSize&&x.packs?x.packSize*x.packs:""),total:x.lineTotalExGst??"",include:isChem,flag:flags.join("; "),
+        note:!isChem?"Marked as not a chemical (freight, fees, hardware etc). Change the product if that's wrong.":""};
+    });
+    const chemSum=lines.filter(l=>l.productId!=="__skip").reduce((s,l)=>s+(parseFloat(l.total)||0),0);
+    const invT=parseFloat(out.invoiceTotalExGst);
+    if(invT>0) warnings.push(`Invoice total ex GST reads as ${money(invT)}; chemical lines here add to ${money(chemSum)}. The difference should be freight, fees or other non-chemical items.`);
+    if(!lines.length) warnings.push("No line items could be read. Try a clearer photo, or add the lines by hand.");
+    let date=String(out.date||""); if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ if(date) warnings.push(`Couldn't read the date clearly (“${date}”). Please set it.`); date=""; }
+    openEntry({mode:"invoice",header:{date,supplier:String(out.supplier||""),invoiceNo:String(out.invoiceNo||"")},lines,warnings});
+  }catch(e){
+    btn.disabled=false;
+    const m={rate_limited:"Claude is busy right now. Wait a minute and try again.",not_granted:"Reading invoices needs permission to use Claude. You can still add purchases by hand.",image_rejected:"One of the photos couldn't be used. Try a JPEG or PNG under the size limit.",images_unavailable:"This view can't send photos to Claude. Open the tracker in the Claude app or claude.ai."};
+    msg.style.color="var(--bad)"; msg.textContent=m[e.code]||("Couldn't read the invoice: "+(e.message||e.code||"unknown error"));
+  }
+}
+
+// ---------- export ----------
+$("#btnExport").onclick=async()=>{
+  const agg=new Map(); for(const p of purchases){ const a=agg.get(p.productId)||{qty:0,total:0}; a.qty+=+p.qty||0; a.total+=+p.totalExGst||0; agg.set(p.productId,a); }
+  const prods=[...products.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  const sum=prods.filter(p=>agg.has(p.id)).map(p=>{const a=agg.get(p.id);return {"Chemical":p.name,"Active Ingredient":(p.active||"")+(p.unconfirmed?" (unconfirmed)":""),"Unit":p.unit,"Total Qty":+a.qty.toFixed(3),"Total Cost ($, ex GST)":+a.total.toFixed(2),"Avg Cost ($ per unit)":a.qty?+(a.total/a.qty).toFixed(4):0};});
+  const pur=[...purchases].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(x=>{const p=products.get(x.productId);return {"Date":x.date||"","Season":seasonOf(x),"Chemical":p?.name||x.productId,"Supplier":x.supplier||"","Invoice No":x.invoiceNo||"","Pack Size":x.packSize??"","Packs":x.packs??"","Qty":x.qty,"Unit":p?.unit||"","Total ($, ex GST)":x.totalExGst,"Source":x.source==="opening"?"2025 spreadsheet":x.source,"Note":x.note||""};});
+  const nb=prods.filter(p=>!agg.has(p.id)).map(p=>({"Chemical":p.name,"Active Ingredient":p.active||""}));
+  const stamp=today();
+  let data, filename;
+  if(window.XLSX){
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sum),"Totals by Chemical");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(pur),"All Purchases");
+    if(nb.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(nb),"Not Purchased");
+    data=XLSX.write(wb,{bookType:"xlsx",type:"array"}); filename=`Gunnadoo_Chemical_Costs_${stamp}.xlsx`;
+  } else {
+    const cols=Object.keys(pur[0]||{Date:""}); data=[cols.join(","),...pur.map(r=>cols.map(c=>`"${String(r[c]??"").replace(/"/g,'""')}"`).join(","))].join("\n"); filename=`Gunnadoo_Chemical_Purchases_${stamp}.csv`;
+  }
+  try{ await downloads.save({filename,data}); }catch(e){ if(e?.code!=="declined"&&e?.code!=="cancelled") toast("Download didn't go through: "+(e.message||e.code)); }
+};
+
+// ---------- labels ----------
+let labels=new Map(), gotL=false;
+const lstate={q:"",filter:"all"};
+function showTab(t){
+  $("#tabCosts").setAttribute("aria-selected",t==="costs"); $("#tabLabels").setAttribute("aria-selected",t==="labels");
+  $("#viewCosts").hidden=t!=="costs"; $("#viewLabels").hidden=t!=="labels";
+  $("#btnScan").style.visibility=$("#btnManual").style.visibility=$("#btnExport").style.visibility=t==="costs"?"":"hidden";
+  try{localStorage.setItem("chemtab",t);}catch(e){}
+  if(t==="labels") renderLabels();
+}
+$("#tabCosts").onclick=()=>showTab("costs"); $("#tabLabels").onclick=()=>showTab("labels");
+$("#lq").addEventListener("input",e=>{lstate.q=e.target.value;renderLabels();});
+$("#lfilter").addEventListener("change",e=>{lstate.filter=e.target.value;renderLabels();});
+const safeUrl=u=>/^https:\/\//i.test(u||"")?u:"";
+function renderLabels(){
+  if($("#viewLabels").hidden||!gotP||!gotL) return;
+  const bought=new Set(isAdm?purchases.map(p=>p.productId):[...products.keys()]);
+  const q=lstate.q.trim().toLowerCase();
+  let list=[...products.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  if(lstate.filter==="bought") list=list.filter(p=>bought.has(p.id));
+  if(lstate.filter==="missing") list=list.filter(p=>{const l=labels.get(p.id);return !l||!safeUrl(l.labelUrl);});
+  if(q) list=list.filter(p=>{const l=labels.get(p.id)||{};return [p.name,p.active,l.productName,l.crops,l.apvmaNo,l.registrant].join(" ").toLowerCase().includes(q);});
+  if(!list.length){ $("#labelList").innerHTML=`<div class="empty">${labels.size?"No products match.":"Labels are being added. Check back shortly."}</div>`; return; }
+  $("#labelList").innerHTML=list.map(p=>{
+    const l=labels.get(p.id);
+    if(!l) return `<div class="lab"><div class="lab-top"><div><h3>${esc(p.name)}</h3><div class="pact">${esc(p.active||"")}</div></div><span class="chip warn">Label not added yet</span></div></div>`;
+    const url=safeUrl(l.labelUrl);
+    const kind={label:"Label",sds:"Safety data sheet",page:"Product page"}[l.docType]||"Label";
+    const rows=[["Product on label",l.productName],["APVMA no.",l.apvmaNo],["Registrant",l.registrant],["Active",l.labelActive],["Crops / uses",l.crops],["Rates",l.rates],["Withholding",l.whp],["Rainfast",l.rainfast],["Other",l.other]].filter(r=>r[1]);
+    return `<div class="lab">
+      <div class="lab-top"><div><h3>${esc(p.name)}${bought.has(p.id)?"":`<span class="chip warn">not bought</span>`}</h3>
+        <div class="pact">${esc(p.active||"")}</div></div>
+        ${url?`<a class="btnlink" href="${esc(url)}" target="_blank" rel="noopener">Open ${kind.toLowerCase()}</a>`:`<span class="chip bad">No label found</span>`}</div>
+      ${l.note?`<div class="banner" style="font-size:.88rem">${esc(l.note)}</div>`:""}
+      ${rows.length?`<dl>${rows.map(r=>`<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join("")}</dl>`:""}
+      <div class="src">${url?`${esc(kind)} from ${esc(l.source||new URL(url).hostname)}`:"Searched"} · checked ${esc(l.checked||"")}</div>
+    </div>`;}).join("");
+}
+
+// ---------- boot ----------
+(async()=>{
+  const me=await requireMember(); isAdm=me.role==="admin";
+  db=makeDb("chem_");
+  db.collection("products").onSnapshot(s=>{ products=new Map(s.docs.map(d=>[d.id,{id:d.id,...d.data()}])); gotP=true; render(); renderLabels(); }, e=>banner("Lost the connection to the product list. Reload the page.","bad"));
+  db.collection("labels").onSnapshot(s=>{ labels=new Map(s.docs.map(d=>[d.id,d.data()])); gotL=true; renderLabels(); }, e=>banner("Lost the connection to labels. Reload the page.","bad"));
+  if(isAdm){
+    db.collection("purchases").onSnapshot(s=>{ purchases=s.docs.map(d=>({id:d.id,...d.data()})); gotPu=true; render(); renderLabels(); }, e=>banner("Lost the connection to purchases. Reload the page.","bad"));
+    downloads=dlHelper; $("#btnExport").hidden=false;
+    try{ if(localStorage.getItem("chemtab")==="labels") showTab("labels"); }catch(e){}
+  } else {
+    gotPu=true; $("#tabCosts").hidden=true; $("#btnManual").hidden=true;
+    $('#lfilter option[value="bought"]')?.remove();
+    showTab("labels");
+  }
+})();
+})();
+</script>
+
+</body></html>

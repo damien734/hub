@@ -105,7 +105,8 @@ export async function getScanner() {
   } catch (e) { console.error("Scanner failed to load", e); return null; }
   const json = async (prompt, opts = {}) => {
     const parts = [prompt];
-    for (const img of opts.images || []) {
+    const imgs = opts.images ? (Array.isArray(opts.images) ? opts.images : [opts.images]) : [];
+    for (const img of imgs) {
       parts.push({ inlineData: { mimeType: img.type || "image/jpeg", data: await blobToBase64(img) } });
     }
     let res;

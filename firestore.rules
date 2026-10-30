@@ -92,7 +92,29 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Machinery register + service history.
+    // ---- Gunnadoo Workshop ----
+    // Machines: everyone reads; staff can log jobs (updates hours, last-service dates, adds parts); admin deletes.
+    match /workshop_machines/{id} {
+      allow read: if isMember();
+      allow create, update: if canWork();
+      allow delete: if isAdmin();
+    }
+    match /workshop_logs/{id} {
+      allow read: if isMember();
+      allow create, update: if canWork();
+      allow delete: if isAdmin();
+    }
+    // Farm oils and photos: everyone reads, admin changes.
+    match /workshop_oils/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /workshop_photos/{id} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+
+    // Machinery register + service history (old built-in section, no longer on the homepage).
     match /machines/{id} {
       allow read: if isMember();
       allow create, update: if canWork();

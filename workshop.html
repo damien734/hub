@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en-AU"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gunnadoo Workshop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<meta name="theme-color" content="#39938E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gunnadoo">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+</head><body>
+<style>
+/* Layout: bright brand band on top; colour-coded machine cards with photos down the side; selected machine's photo, ID plate and tabs on the right; stacks on phones */
+:root{
+  --bg:#eef6f4; --panel:#ffffff; --ink:#15211d; --muted:#4f6560; --line:#d3e3df; --row:#f5faf9;
+  --brand:#10a39b; --brand-ink:#ffffff; --brand-deep:#0b7d77; --sun:#ffc21a; --sun-ink:#2a1f00;
+  --accent:#0f9a92; --accent-ink:#ffffff; --accent-soft:#d8f2ef;
+  --plate:#f3ecd6; --plate-ink:#3a3122; --plate-line:#c9b98c;
+  --ok:#1f8f46; --ok-soft:#d9f5e2; --warn:#b86e00; --warn-soft:#ffefc7; --bad:#d6352a; --bad-soft:#ffe0dc; --on-bad:#ffffff;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1716; --panel:#18221f; --ink:#e8f1ee; --muted:#9fb3ad; --line:#2a3a36; --row:#1d2926;
+  --brand:#0e8a83; --brand-ink:#ffffff; --brand-deep:#0a5f5a; --sun:#ffc93d; --sun-ink:#2a1f00;
+  --accent:#3fd1c6; --accent-ink:#06201e; --accent-soft:#163a37;
+  --plate:#2e2a1f; --plate-ink:#ece0bd; --plate-line:#5c5238;
+  --ok:#5fdc8a; --ok-soft:#173826; --warn:#ffb648; --warn-soft:#3b2c0f; --bad:#ff7a6b; --bad-soft:#432019; --on-bad:#2a0a06;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1716; --panel:#18221f; --ink:#e8f1ee; --muted:#9fb3ad; --line:#2a3a36; --row:#1d2926;
+  --brand:#0e8a83; --brand-ink:#ffffff; --brand-deep:#0a5f5a; --sun:#ffc93d; --sun-ink:#2a1f00;
+  --accent:#3fd1c6; --accent-ink:#06201e; --accent-soft:#163a37;
+  --plate:#2e2a1f; --plate-ink:#ece0bd; --plate-line:#5c5238;
+  --ok:#5fdc8a; --ok-soft:#173826; --warn:#ffb648; --warn-soft:#3b2c0f; --bad:#ff7a6b; --bad-soft:#432019; --on-bad:#2a0a06;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--brand)}
+.band{background:var(--brand);color:var(--brand-ink);background-image:repeating-linear-gradient(115deg,transparent 0 22px,color-mix(in srgb,var(--brand-deep) 35%,transparent) 22px 26px)}
+.band-in{max-width:1180px;margin:0 auto;padding-block:18px 20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-family:var(--display);font-weight:700;font-size:2.4rem;letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:1}
+h1 span{color:var(--sun)}
+.sub{color:var(--brand-ink);opacity:.9;font-size:.95rem;margin-top:4px;font-weight:600}
+h2,h3{font-family:var(--display);font-weight:600;letter-spacing:.03em;text-transform:uppercase;margin:0;text-wrap:balance}
+h2{font-size:1.8rem;line-height:1.05}
+h3{font-size:1.05rem;color:var(--ink)}
+h3.sec{display:flex;align-items:center;gap:8px}
+h3.sec::before{content:"";width:12px;height:12px;border-radius:3px;background:var(--cat,var(--accent))}
+button,select,input,textarea{font:inherit;color:inherit}
+.btn{border:2px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.hot{background:var(--bad);color:var(--on-bad);border-color:var(--bad)}
+.btn.sun{background:var(--sun);color:var(--sun-ink);border-color:var(--sun)}
+.btn.ghost{background:color-mix(in srgb,var(--brand-ink) 14%,transparent);color:var(--brand-ink);border-color:color-mix(in srgb,var(--brand-ink) 55%,transparent)}
+.btn.small{padding:3px 10px;font-size:.85rem}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.mcard:focus-visible,.tab:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.layout{grid-template-columns:minmax(0,1fr)}}
+.side{display:flex;flex-direction:column;gap:10px}
+.filters{display:flex;gap:8px}
+.filters input{flex:1;min-width:0}
+input,select,textarea{background:var(--panel);border:2px solid var(--line);border-radius:8px;padding:7px 9px;width:100%}
+.mlist{display:flex;flex-direction:column;gap:8px}
+.mcard{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:2px 10px;align-items:center;text-align:left;background:var(--panel);border:2px solid var(--line);border-left:7px solid var(--cat);border-radius:12px;padding:8px 10px 8px 8px;cursor:pointer;width:100%;transition:transform .12s}
+.mcard:hover{transform:translateX(2px)}
+.mcard.sel{border-color:var(--cat);background:color-mix(in srgb,var(--cat) 12%,var(--panel))}
+.mcard .thumb{grid-row:1/3}
+.mcard .nm{font-weight:700;overflow-wrap:anywhere}
+.mcard .meta{grid-column:2/-1;color:var(--muted);font-size:.85rem}
+.thumb{width:56px;height:56px;border-radius:10px;overflow:hidden;background:var(--cat);color:var(--cat-ink);display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:1.3rem}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:99px;white-space:nowrap;align-self:start}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.chip.ok{color:var(--ok);background:var(--ok-soft)}
+.chip.warn{color:var(--warn);background:var(--warn-soft)}
+.chip.bad{color:var(--on-bad);background:var(--bad)}
+.chip.none{color:var(--muted);background:var(--row)}
+.cat{align-self:flex-start;font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-size:.82rem;font-weight:700;margin:8px 0 0;background:var(--cat);color:var(--cat-ink);padding:2px 10px;border-radius:99px}
+.panel{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+#detail{border-top:7px solid var(--cat,var(--accent))}
+.hero{margin:-18px -18px 16px;height:240px;background:var(--cat);color:var(--cat-ink);position:relative;overflow:hidden;border-radius:7px 7px 0 0;display:grid;place-items:center}
+.hero img{width:100%;height:100%;object-fit:cover;display:block}
+.hero.nophoto{height:110px;background-image:repeating-linear-gradient(115deg,transparent 0 22px,color-mix(in srgb,#000 10%,transparent) 22px 26px)}
+.hero .ini{font-family:var(--display);font-weight:700;font-size:3rem;letter-spacing:.04em;opacity:.9}
+.hero .hint{position:absolute;bottom:8px;right:12px;font-size:.8rem;font-weight:600;opacity:.85}
+@media (max-width:560px){.hero{height:190px}}
+.dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.dhead .acts{display:flex;gap:8px;flex-wrap:wrap}
+.catpill{display:inline-block;font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-weight:700;font-size:.85rem;background:var(--cat);color:var(--cat-ink);padding:2px 10px;border-radius:99px;margin-bottom:6px}
+.plate{background:var(--plate);color:var(--plate-ink);border:2px solid var(--plate-line);border-radius:8px;padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px 18px;position:relative}
+.plate::before,.plate::after{content:"";position:absolute;top:8px;width:8px;height:8px;border-radius:50%;background:var(--plate-line)}
+.plate::before{left:8px}.plate::after{right:8px}
+.plate .k{font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-size:.72rem;opacity:.8}
+.plate .v{font-family:var(--mono);font-size:.92rem;overflow-wrap:anywhere}
+.tabs{display:flex;gap:6px;margin:18px 0 14px;overflow-x:auto;padding-bottom:2px}
+.tab{background:var(--row);border:2px solid var(--line);border-radius:99px;padding:6px 14px;cursor:pointer;font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-weight:700;font-size:1rem;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--cat-ink,#fff);background:var(--cat,var(--accent));border-color:var(--cat,var(--accent))}
+.tscroll{overflow-x:auto;border:2px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th{font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-weight:700;font-size:.8rem;color:var(--ink);text-align:left;padding:8px;background:color-mix(in srgb,var(--cat,var(--accent)) 16%,var(--panel));border-bottom:2px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even) td{background:var(--row)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.grp td{background:var(--accent-soft);color:var(--ink);font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-weight:700;font-size:.85rem;padding:6px 8px}
+td.num,.num{font-variant-numeric:tabular-nums}
+td.mono{font-family:var(--mono);font-size:.85rem}
+.empty{color:var(--muted);border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center}
+.reading{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+.reading b{font-family:var(--display);font-size:1.8rem;font-variant-numeric:tabular-nums;color:var(--accent)}
+.loglist{display:flex;flex-direction:column;gap:8px}
+.log{border:2px solid var(--line);border-left:6px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:start}
+.log.service{border-left-color:var(--ok)}.log.repair{border-left-color:var(--warn)}.log.issue{border-left-color:var(--bad)}.log.note{border-left-color:var(--accent)}
+.log .date{font-family:var(--mono);font-size:.8rem;color:var(--muted);white-space:nowrap}
+.log .ttl{font-weight:700}
+.log .det{grid-column:2/-1;white-space:pre-wrap;overflow-wrap:anywhere}
+.log .by{grid-column:2/-1;font-size:.82rem;color:var(--muted)}
+.type{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:99px;background:var(--row);color:var(--muted)}
+.type.issue{color:var(--on-bad);background:var(--bad)}
+.type.service{color:var(--ok);background:var(--ok-soft)}
+.type.repair{color:var(--warn);background:var(--warn-soft)}
+.attn{background:var(--bad-soft);border:2px solid var(--bad);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+.attn strong{color:var(--bad)}
+.man{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:2px solid var(--line);border-radius:10px;margin-bottom:8px}
+.man a{color:var(--accent);font-weight:700;overflow-wrap:anywhere}
+.man .kind{font-size:.8rem;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+label{display:flex;flex-direction:column;gap:3px;font-size:.85rem;font-weight:600;color:var(--muted)}
+.sheet{position:fixed;inset:0;background:color-mix(in srgb,var(--ink) 45%,transparent);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:max(24px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 24px max(12px,env(safe-area-inset-left,0px));z-index:20}
+.sheet .panel{width:100%;max-width:720px;display:flex;flex-direction:column;gap:12px;border-top:7px solid var(--accent)}
+.rowed{display:grid;gap:6px}
+.rowed .r{display:grid;gap:6px;grid-template-columns:repeat(var(--cols),minmax(0,1fr)) auto;align-items:center}
+@media (max-width:560px){.rowed .r{grid-template-columns:minmax(0,1fr) auto;padding-bottom:8px;border-bottom:2px dashed var(--line)}.rowed .r input,.rowed .r select{grid-column:1}}
+.photoed{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center}
+.photoed .prev{width:96px;height:72px;border-radius:10px;background:var(--row);border:2px dashed var(--line);overflow:hidden;display:grid;place-items:center;color:var(--muted);font-size:.75rem}
+.photoed .prev img{width:100%;height:100%;object-fit:cover}
+.checks{display:flex;flex-direction:column;gap:6px}
+.checks label{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:400}
+.checks input{width:auto}
+.note{font-size:.85rem;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--sun);color:var(--sun-ink);padding:9px 16px;border-radius:99px;font-weight:700;z-index:30}
+.err{color:var(--bad);font-weight:600}
+body.noprice .pc{display:none!important}
+.hublink{display:inline-block;color:var(--brand-ink);font-weight:700;text-decoration:none;margin-bottom:6px;opacity:.95}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font-weight:700;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px;font-size:inherit}
+.parts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.parts li{white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.mcard{transition:none}.mcard:hover{transform:none}}
+</style>
+
+<header class="band"><div class="band-in">
+    <div>
+      <a class="hublink" href="./">← Command Centre</a>
+      <h1>Gunnadoo <span>Workshop</span></h1>
+      <div class="sub" id="sub">Machinery register, service records and manuals</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ghost" id="oilsBtn" hidden>Farm oils</button>
+      <button class="btn ghost" id="slBtn">Shopping list</button>
+      <button class="btn sun" id="addMachine" hidden>Add machine</button>
+    </div>
+  </div></header>
+<div class="wrap">
+  <div class="layout">
+    <aside class="side">
+      <div class="filters">
+        <input id="q" type="search" placeholder="Search name, serial, rego" aria-label="Search machines">
+        <select id="fstat" aria-label="Filter by status" style="width:auto">
+          <option value="">All</option><option value="bad">Needs attention</option><option value="warn">Service due</option>
+        </select>
+      </div>
+      <div class="mlist" id="mlist"><div class="empty">Loading machines…</div></div>
+    </aside>
+    <main class="panel" id="detail"><div class="empty">Pick a machine to see its details.</div></main>
+  </div>
+</div>
+<div id="sheetHost"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script type="module">
+import {requireMember,makeDb,getScanner} from "./core.js";
+const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
+  machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
+const photoSrc=id=>id?(S.photos[id]||""):"";
+// Photos live in Firestore (workshop_photos) as small JPEGs, so no paid file storage is needed.
+function photoStore(db){
+  const toDataUrl=b=>new Promise((ok,bad)=>{const r=new FileReader();r.onload=()=>ok(String(r.result));r.onerror=()=>bad(r.error);r.readAsDataURL(b)});
+  const squash=async b=>{try{const bm=await createImageBitmap(b);const k=Math.min(1,1000/Math.max(bm.width,bm.height));
+    const c=document.createElement("canvas");c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);c.getContext("2d").drawImage(bm,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(x=>r(x||b),"image/jpeg",0.78))}catch(e){return b}};
+  return {
+    async upload(blob){const small=await squash(blob);const data=await toDataUrl(small);
+      if(data.length>900000){const e=new Error("too big");e.code="too_large";throw e}
+      const id="p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+      await db.doc("photos/"+id).set({data,at:Date.now()});S.photos[id]=data;return {id,url:data}},
+    async delete(id){await db.doc("photos/"+id).delete();delete S.photos[id]}
+  };
+}
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const normD=s=>/^\d{4}-\d{2}$/.test(s||"")?s+"-15":(s||"");
+const fmtDate=s=>{if(!s)return"";s=normD(s);const d=new Date(s+"T00:00:00");return isNaN(d)?s:d.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})};
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:null};
+const fmtNum=n=>n==null?"":Number(n).toLocaleString("en-AU");
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
+const unitLabel=u=>u==="km"?"km":"hrs";
+
+/* ---------- status logic ---------- */
+const parseD=s=>{if(!s)return null;s=normD(s);const d=new Date(s+"T00:00:00");return isNaN(d)?null:d};
+/* optional second hour meter (e.g. rotor hours on a header) */
+const m2=m=>String(m.meter2||"").trim();
+const mainLabel=m=>m2(m)&&m.unit!=="km"?"engine hrs":unitLabel(m.unit);
+const ivUnit=(m,iv)=>iv.meter==="2"&&m2(m)?m2(m).toLowerCase()+" hrs":mainLabel(m);
+const ivCur=(m,iv)=>iv.meter==="2"&&m2(m)?num(m.reading2):num(m.reading);
+/* hours and/or months, whichever comes first */
+function intervalState(m,iv){
+  const hrs=iv.unit==="months"?null:num(iv.every), mo=iv.unit==="months"?num(iv.every):num(iv.months);
+  if(!hrs&&!mo) return {cls:"none",text:"No interval set"};
+  const out=[],due=[],u=ivUnit(m,iv),last=num(iv.lastAt),cur=ivCur(m,iv);
+  if(hrs&&last!=null){const dueAt=last+hrs;due.push(fmtNum(dueAt)+" "+u);
+    if(cur==null) out.push({cls:"none",text:`Due at ${fmtNum(dueAt)} ${u}`});
+    else{const left=dueAt-cur;out.push(left<0?{cls:"bad",text:`Overdue by ${fmtNum(-left)} ${u}`}:{cls:left<=hrs*0.1?"warn":"ok",text:`${fmtNum(left)} ${u} to go`})}}
+  const ld=parseD(iv.lastDate);
+  if(mo&&ld){const d=new Date(ld);d.setMonth(d.getMonth()+mo);due.push(d.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}));
+    const days=Math.round((d-new Date())/864e5);
+    out.push(days<0?{cls:"bad",text:`Overdue ${-days} days`}:{cls:days<=14?"warn":"ok",text:`Due in ${days} days`})}
+  if(!out.length) return {cls:"warn",text:"Never logged"};
+  const rank={bad:3,warn:2,ok:1,none:0};out.sort((a,b)=>rank[b.cls]-rank[a.cls]);
+  return {...out[0],due:due.join(" or ")};
+}
+const openIssues=id=>S.logs.filter(l=>l.machineId===id&&l.type==="issue"&&!l.resolved);
+function machineState(m){
+  if(openIssues(m.id).length) return {cls:"bad",text:"Needs attention"};
+  const st=(m.intervals||[]).map(iv=>intervalState(m,iv).cls);
+  if(st.includes("bad")) return {cls:"warn",text:"Service overdue"};
+  if(st.includes("warn")) return {cls:"warn",text:"Service due"};
+  if(st.includes("ok")) return {cls:"ok",text:"OK"};
+  return {cls:"none",text:"No schedule"};
+}
+
+/* ---------- list ---------- */
+const PALETTE=[["#10a39b","#ffffff"],["#ffc21a","#2a1f00"],["#f0563a","#ffffff"],["#2b8ef0","#ffffff"],["#52b83f","#0f2a08"],["#d9418c","#ffffff"],["#ff8c1a","#2a1400"],["#7a5cf0","#ffffff"]];
+const CATMAP={truck:2,trucks:2,sprayer:4,sprayers:4,tractor:3,tractors:3,header:1,headers:1,harvester:1,ute:6,utes:6,seeder:5,"air seeder":5,loader:7,slasher:0};
+function catColor(c){const k=String(c||"other").toLowerCase().trim();let i=CATMAP[k];if(i==null){let h=0;for(const ch of k)h=(h*31+ch.charCodeAt(0))>>>0;i=h%PALETTE.length}return PALETTE[i]}
+const catStyle=c=>{const p=catColor(c);return `--cat:${p[0]};--cat-ink:${p[1]}`};
+const initials=n=>String(n||"?").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
+const thumb=m=>`<span class="thumb">${m.photoId?`<img src="${photoSrc(m.photoId)}" alt="" loading="lazy" onerror="this.remove()">`:esc(initials(m.name))}</span>`;
+function renderList(){
+  const host=$("#mlist");
+  if(!S.ready){host.innerHTML='<div class="empty">Loading machines…</div>';return}
+  if(!S.db){host.innerHTML='<div class="empty">The machine register can\'t be reached in this view. Open it signed in to Claude.</div>';return}
+  if(!S.machines.length){host.innerHTML=`<div class="empty">No machines yet.${S.canEdit?" Use <b>Add machine</b> to put the first one in.":""}</div>`;return}
+  const q=$("#q").value.trim().toLowerCase(), f=$("#fstat").value;
+  const list=S.machines.filter(m=>{
+    const hay=[m.name,m.make,m.model,m.serial,m.engineNo,m.rego,m.category].join(" ").toLowerCase();
+    if(q&&!hay.includes(q))return false;
+    if(f){const c=machineState(m).cls;if(f==="bad"&&c!=="bad")return false;if(f==="warn"&&c!=="warn")return false}
+    return true});
+  if(!list.length){host.innerHTML='<div class="empty">No machines match.</div>';return}
+  const cats={};list.forEach(m=>(cats[m.category||"Other"]??=[]).push(m));
+  host.innerHTML=Object.keys(cats).sort().map(c=>`<div class="cat" style="${catStyle(c)}">${esc(c)}</div>`+cats[c].map(m=>{
+    const st=machineState(m);
+    return `<button class="mcard${S.sel===m.id?" sel":""}" data-id="${esc(m.id)}" style="${catStyle(m.category||"Other")}">
+      ${thumb(m)}<span class="nm">${esc(m.name||"Unnamed")}</span><span class="chip ${st.cls}">${esc(st.text)}</span>
+      <span class="meta">${esc([m.make,m.model,m.year].filter(Boolean).join(" · "))}${m.reading!=null&&m.reading!==""?` · ${fmtNum(num(m.reading))} ${unitLabel(m.unit)}`:""}</span></button>`}).join("")).join("");
+}
+$("#mlist").addEventListener("click",e=>{const b=e.target.closest(".mcard");if(b)select(b.dataset.id)});
+$("#q").addEventListener("input",renderList);$("#fstat").addEventListener("change",renderList);
+
+function select(id){S.sel=id;try{history.replaceState(null,"","#"+id)}catch(e){}renderList();renderDetail();
+  if(window.innerWidth<=820)$("#detail").scrollIntoView({behavior:"smooth",block:"start"})}
+
+/* ---------- detail ---------- */
+function renderDetail(){
+  const host=$("#detail"); const m=S.machines.find(x=>x.id===S.sel);
+  if(!m){host.style.cssText="";host.innerHTML='<div class="empty">Pick a machine to see its details.</div>';return}
+  host.style.cssText=catStyle(m.category||"Other");
+  const st=machineState(m), issues=openIssues(m.id);
+  const plateRows=[["Make",m.make],["Model",m.model],["Year",m.year],["Serial / VIN",m.serial],["Engine no.",m.engineNo],["Rego",m.rego],...(m.otherIds||[]).map(o=>[o.label,o.value])].filter(r=>r[1]);
+  host.innerHTML=`
+  <div class="hero${m.photoId?"":" nophoto"}">${m.photoId?`<img src="${photoSrc(m.photoId)}" alt="Photo of ${esc(m.name)}" onerror="this.remove()">`:`<span class="ini">${esc(initials(m.name))}</span>${S.canEdit?`<span class="hint">Add a photo under Edit details</span>`:""}`}</div>
+  <div class="dhead">
+    <div><span class="catpill">${esc(m.category||"Machine")}</span><h2>${esc(m.name)}</h2>
+      <div style="margin-top:6px"><span class="chip ${st.cls}">${esc(st.text)}</span></div></div>
+    <div class="acts">
+      ${S.canWrite?`<button class="btn primary" data-act="log">Log a job</button><button class="btn hot" data-act="issue">Report a problem</button>`:""}
+      ${S.canEdit?`<button class="btn" data-act="edit">Edit details</button>`:""}
+    </div>
+  </div>
+  ${issues.length?`<div class="attn"><strong>${issues.length} open problem${issues.length>1?"s":""}:</strong> ${issues.map(i=>esc(i.title)).join("; ")}</div>`:""}
+  ${plateRows.length?`<div class="plate">${plateRows.map(r=>`<div><div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div></div>`).join("")}</div>`:`<div class="empty">No identification details yet.</div>`}
+  <div class="reading"><span class="note">${m2(m)?"Engine hours":"Current "+(m.unit==="km"?"odometer":"hour meter")}:</span>
+    <b>${m.reading!=null&&m.reading!==""?fmtNum(num(m.reading))+" "+(m2(m)?"hrs":unitLabel(m.unit)):"—"}</b>
+    ${m.readingDate?`<span class="note">as at ${fmtDate(m.readingDate)}</span>`:""}</div>
+  ${m2(m)?`<div class="reading" style="margin-top:2px"><span class="note">${esc(m2(m))} hours:</span>
+    <b>${m.reading2!=null&&m.reading2!==""?fmtNum(num(m.reading2))+" hrs":"—"}</b>
+    ${m.reading2Date?`<span class="note">as at ${fmtDate(m.reading2Date)}</span>`:""}</div>`:""}
+  <div class="tabs" role="tablist">
+    ${[["overview","Service & fluids"],["history","History"],["parts","Parts"],["manuals","Manuals"],["videos","Video links"]].map(([k,l])=>`<button class="tab" role="tab" aria-selected="${S.tab===k}" data-tab="${k}">${l}</button>`).join("")}
+  </div>
+  <div id="tabBody"></div>`;
+  renderTab(m);
+}
+const money=n=>{n=Number(n);const d=Math.round(n*100)%100?2:0;return "$"+n.toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d})};
+function serviceCost(m,iv){
+  if(!iv.parts)return null;const rows=m.fluids||[];let total=0;const missing=[];
+  String(iv.parts).split(";").map(s=>s.trim()).filter(Boolean).forEach(p=>{
+    const mm=p.match(/^(.*?)\s*[x×]\s*([\d.]+)\s*$/i),name=(mm?mm[1]:p).trim(),q=mm?parseFloat(mm[2]):1;
+    const r=rows.find(f=>(f.system||"").trim().toLowerCase()===name.toLowerCase()),pr=r?rowPrice(r):null;
+    if(pr==null)missing.push(name);else total+=pr*q});
+  return {total,missing};
+}
+function serviceLines(m,iv){
+  const rows=m.fluids||[];
+  return String(iv.parts||"").split(";").map(s=>s.trim()).filter(Boolean).map(p=>{
+    const mm=p.match(/^(.*?)\s*[x×]\s*([\d.]+)\s*$/i),name=(mm?mm[1]:p).trim(),q=mm?parseFloat(mm[2]):1;
+    const r=rows.find(f=>(f.system||"").trim().toLowerCase()===name.toLowerCase())||null;
+    const o=r?oilById(r.oilId):null,pr=r?rowPrice(r):null;
+    return {name,q,row:r,oil:o,price:pr,isOil:!!(r&&r.per==="L"),total:pr==null?null:pr*q}});
+}
+/* shopping list: a per-viewer convenience kept in this browser */
+const SL={items:[],key:"gw-shoplist",
+  load(){try{const v=JSON.parse(localStorage.getItem(this.key)||"[]");this.items=Array.isArray(v)?v:[]}catch(e){this.items=[]}},
+  save(){try{localStorage.setItem(this.key,JSON.stringify(this.items))}catch(e){}},
+  has(id,t){return this.items.some(x=>x.m===id&&x.t===t)},
+  toggle(id,t){if(this.has(id,t))this.items=this.items.filter(x=>!(x.m===id&&x.t===t));else this.items.push({m:id,t});this.save();updateSLBtn()},
+  clear(){this.items=[];this.save();updateSLBtn()}};
+SL.load();
+function updateSLBtn(){const n=SL.items.length;$("#slBtn").textContent=n?`Shopping list (${n})`:"Shopping list"}
+updateSLBtn();
+function openService(m,i){
+  const iv=(m.intervals||[])[i];if(!iv)return;
+  const ls=serviceLines(m,iv),st=intervalState(m,iv),tot=ls.reduce((a,l)=>a+(l.total||0),0),miss=ls.filter(l=>l.total==null);
+  const every=`${fmtNum(num(iv.every))} ${iv.unit==="months"?"months":ivUnit(m,iv)}${iv.unit!=="months"&&num(iv.months)?` or ${iv.months} months`:""}`;
+  const s=sheet(`<div><span class="catpill" style="${catStyle(m.category||"Other")}">${esc(m.name)}</span><h2>${esc(iv.task)}</h2></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="chip ${st.cls}">${esc(st.text)}</span><span class="note">Every ${esc(every)}${st.due?" · next due "+esc(st.due):""}</span></div>
+  <h3 class="sec" style="${catStyle(m.category||"Other")}">What you need</h3>
+  ${ls.length?`<div class="tscroll" style="${catStyle(m.category||"Other")}"><table><thead><tr><th>Item</th><th>Qty</th><th>Part numbers / oil</th><th class="pc">Unit price</th><th class="pc">Cost</th></tr></thead><tbody>
+    ${ls.map(l=>`<tr><td>${esc(l.name)}${l.row&&l.row.spec?`<div class="note">${esc(l.row.spec)}</div>`:""}</td><td class="num">${fmtNum(l.q)}${l.isOil?" L":""}</td><td class="mono">${l.oil?esc(l.oil.name):l.row?partList(l.row.filter)||'<span class="note">No part number yet</span>':'<span class="note">Not in the parts list</span>'}</td><td class="num pc">${l.price!=null?money(l.price)+(l.isOil?"/L":""):"—"}</td><td class="num pc">${l.total!=null?money(l.total):"price needed"}</td></tr>`).join("")}
+    <tr class="grp pc"><td colspan="4">Total ex GST</td><td class="num">${money(tot)}${miss.length?" +":""}</td></tr></tbody></table></div>
+    ${miss.length?`<div class="note pc">Price still needed for: ${esc(miss.map(l=>l.name).join(", "))}</div>`:""}`
+  :`<div class="empty">No parts listed for this service yet${S.canEdit?". Add them under Edit details, in the service's “Parts used” box":""}.</div>`}
+  <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="btn" data-close>Close</button>${ls.length?`<button type="button" class="btn primary" id="sv-list">${SL.has(m.id,iv.task)?"Remove from shopping list":"Add to shopping list"}</button>`:""}</div>`);
+  const b=s.querySelector("#sv-list");
+  if(b)b.addEventListener("click",()=>{SL.toggle(m.id,iv.task);const on=SL.has(m.id,iv.task);closeSheet();renderDetail();toast(on?"Added to shopping list":"Removed from shopping list")});
+}
+function openShopping(){
+  const sel=SL.items.map(x=>{const m=S.machines.find(mm=>mm.id===x.m),iv=m&&(m.intervals||[]).find(v=>v.task===x.t);return m&&iv?{m,iv}:null}).filter(Boolean);
+  const oils=new Map(),parts=new Map();let total=0,missing=0;
+  sel.forEach(({m,iv})=>serviceLines(m,iv).forEach(l=>{
+    if(l.total!=null)total+=l.total;else missing++;
+    if(l.isOil){const k=l.oil?"o:"+l.oil.id:"u:"+m.id+":"+l.name;const e=oils.get(k)||{name:l.oil?l.oil.name:`${l.name} (${m.name}, no farm oil linked)`,L:0,price:l.price,uses:[]};e.L+=l.q;e.uses.push(`${m.name}: ${l.name}`);oils.set(k,e)}
+    else{const k=m.id+":"+l.name;const e=parts.get(k)||{name:l.name,machine:m.name,nums:l.row?l.row.filter:"",q:0,price:l.price};e.q+=l.q;parts.set(k,e)}}));
+  const ol=[...oils.values()],pl=[...parts.values()];
+  const r2=n=>Math.round(n*100)/100;
+  const text=[`Gunnadoo Workshop shopping list, ${fmtDate(today())}`,"","SERVICES",...sel.map(({m,iv})=>`- ${m.name}: ${iv.task}`),"","OILS",...(ol.length?ol.map(o=>`- ${o.name}: ${fmtNum(r2(o.L))} L`):["- none"]),"","FILTERS & PARTS",...(pl.length?pl.map(p=>`- ${p.machine}: ${p.name} x${fmtNum(p.q)}${p.nums?` (${String(p.nums).replace(/\s*;\s*/g,", ")})`:""}`):["- none"]),...(S.isAdmin?["",`Estimated total ex GST: ${money(total)}${missing?" plus items without a price":""}`]:[])].join("\n");
+  const s=sheet(`<h2>Shopping list</h2>
+  ${sel.length?`<div class="note">Everything needed for the services you've picked, added together. Saved on this device.</div>
+  <h3 class="sec">Services</h3><div style="display:flex;flex-direction:column;gap:6px">${sel.map(({m,iv})=>`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;${catStyle(m.category||"Other")};border-left:6px solid var(--cat);padding-left:8px"><span><b>${esc(iv.task)}</b><br><span class="note">${esc(m.name)}</span></span><button type="button" class="btn small" data-slrm="${esc(m.id)}" data-slt="${esc(iv.task)}">Remove</button></div>`).join("")}</div>
+  <h3 class="sec">Oils</h3>${ol.length?`<div class="tscroll"><table><thead><tr><th>Oil</th><th>Litres</th><th class="pc">$/L</th><th class="pc">Cost</th></tr></thead><tbody>${ol.map(o=>`<tr><td>${esc(o.name)}<div class="note">${esc(o.uses.join("; "))}</div></td><td class="num">${fmtNum(r2(o.L))} L</td><td class="num pc">${o.price!=null?money(o.price):"—"}</td><td class="num pc">${o.price!=null?money(o.price*o.L):"price needed"}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No oils in these services.</div>`}
+  <h3 class="sec">Filters & parts</h3>${pl.length?`<div class="tscroll"><table><thead><tr><th>Item</th><th>Qty</th><th>Part numbers</th><th class="pc">Cost</th></tr></thead><tbody>${pl.map(p=>`<tr><td>${esc(p.name)}<div class="note">${esc(p.machine)}</div></td><td class="num">${fmtNum(p.q)}</td><td class="mono">${partList(p.nums)||'<span class="note">No part number yet</span>'}</td><td class="num pc">${p.price!=null?money(p.price*p.q):"price needed"}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No filters or parts in these services.</div>`}
+  <div class="reading pc" style="margin:0"><span class="note">Estimated total ex GST:</span><b>${money(total)}</b>${missing?`<span class="note">plus ${missing} item${missing>1?"s":""} without a price</span>`:""}</div>
+  <textarea id="sl-text" rows="6" readonly hidden>${esc(text)}</textarea>
+  <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap"><button type="button" class="btn" id="sl-clear">Clear list</button><div style="display:flex;gap:8px"><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" id="sl-copy">Copy list</button></div></div>`
+  :`<div class="empty">Your shopping list is empty. Open a machine, then tick services in its service schedule, or tap a service and choose <b>Add to shopping list</b>.</div><div style="display:flex;justify-content:flex-end"><button type="button" class="btn" data-close>Close</button></div>`}`);
+  s.addEventListener("click",e=>{
+    const rm=e.target.closest("[data-slrm]");if(rm){SL.toggle(rm.dataset.slrm,rm.dataset.slt);renderDetail();openShopping();return}
+    if(e.target.closest("#sl-clear")){SL.clear();renderDetail();closeSheet();toast("Shopping list cleared");return}
+    if(e.target.closest("#sl-copy")){const ta=s.querySelector("#sl-text");
+      const fallback=()=>{ta.hidden=false;ta.focus();ta.select();toast("Select all and copy the text below")};
+      try{navigator.clipboard.writeText(text).then(()=>toast("List copied. Paste it into a text or email."),fallback)}catch(err){fallback()}}
+  });
+}
+$("#slBtn").addEventListener("click",openShopping);
+function partRow(name,nums,price,notes,i){
+  return `<tr data-ptxt="${esc(String((name||"")+" "+(nums||"")+" "+(notes||"")).toLowerCase())}"><td>${esc(name)}</td><td class="mono">${partList(nums)||'<span class="note">—</span>'}</td><td class="num pc">${price!=null?money(price):"—"}</td><td class="note">${esc(notes)}</td>${S.canEdit?`<td>${i>=0?`<button type="button" class="btn small" data-pdel="${i}">Remove</button>`:""}</td>`:""}</tr>`}
+function partList(s){const p=String(s??"").split(/\s+or\s+|\s*[\n;]\s*/i).map(x=>x.trim()).filter(Boolean);
+  return p.length>1?`<ul class="parts">${p.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:esc(p[0]||"")}
+function renderTab(m){
+  const b=$("#tabBody"); if(!b)return;
+  if(S.tab==="overview"){
+    const iv=m.intervals||[], fl=m.fluids||[];
+    b.innerHTML=`<h3 class="sec" style="margin-bottom:4px">Service schedule</h3>
+    ${iv.length?`<div class="note" style="margin-bottom:8px">Tap a service to see what it needs. Tick services to add them to the shopping list.</div><div class="tscroll"><table><thead><tr><th>List</th><th>Task</th><th>Every</th><th>Last done</th><th>Next due</th><th class="pc">Est. cost</th><th>Status</th></tr></thead><tbody>
+      ${iv.map((x,i)=>{const s=intervalState(m,x),c=serviceCost(m,x);return `<tr><td><input type="checkbox" style="width:auto" data-sl="${i}"${SL.has(m.id,x.task)?" checked":""} aria-label="Add ${esc(x.task)} to shopping list"></td><td><button type="button" class="linkbtn" data-sv="${i}">${esc(x.task)}</button>${x.parts?`<div class="note">${esc(x.parts)}</div>`:""}</td><td class="num">${esc(fmtNum(num(x.every)))} ${x.unit==="months"?"months":ivUnit(m,x)}${x.unit!=="months"&&num(x.months)?` / ${esc(x.months)} months`:""}</td>
+      <td class="num">${x.lastAt!=null&&x.lastAt!==""?fmtNum(num(x.lastAt))+" "+ivUnit(m,x):""}${x.lastDate?`<div class="note">${fmtDate(x.lastDate)}</div>`:""}${x.lastAt==null&&!x.lastDate?"—":""}</td>
+      <td class="num">${esc(s.due||"—")}</td><td class="num pc">${!c?"—":(c.total?money(c.total)+(c.missing.length?" +":""):"—")}${c&&c.missing.length?`<div class="note">${esc(c.missing.join(", "))}: price needed</div>`:""}</td><td><span class="chip ${s.cls}">${esc(s.text)}</span></td></tr>`}).join("")}</tbody></table></div>`
+      :`<div class="empty">No service intervals set${S.canEdit?" — add them under Edit details, taken from the operator's manual":""}.</div>`}
+    <h3 class="sec" style="margin:20px 0 8px">Oils, filters & belts</h3>
+    ${fl.length?`<div class="tscroll"><table><thead><tr><th>Item</th><th>Oil / fluid spec</th><th>Qty / capacity</th><th>Part numbers</th><th class="pc">Price ex GST</th></tr></thead><tbody>
+      ${fl.map(f=>`<tr><td>${esc(f.system)}</td><td>${f.spec?`<div class="note">Recommended</div>${esc(f.spec)}`:""}${oilNote(f)}</td><td class="num">${esc(f.qty)}</td><td class="mono">${partList(f.filter)}</td><td class="num pc">${rowPrice(f)!=null?money(rowPrice(f))+(f.per==="L"?"/L":""):"—"}</td></tr>`).join("")}</tbody></table></div><div class="note pc" style="margin-top:6px">Prices are what was last paid, ex GST. Oils linked to Farm oils use the farm price per litre. Service costs above are worked out from these.</div>`
+      :`<div class="empty">No oils, filters or belts entered${S.canEdit?" — add them under Edit details":""}.</div>`}
+    ${m.notes?`<h3 class="sec" style="margin:20px 0 8px">Notes</h3><div style="white-space:pre-wrap">${esc(m.notes)}</div>`:""}`;
+  } else if(S.tab==="history"){
+    const logs=S.logs.filter(l=>l.machineId===m.id).sort((a,b)=>normD(b.date).localeCompare(normD(a.date))||(b.createdAt||0)-(a.createdAt||0));
+    b.innerHTML=logs.length?`<div class="loglist">${logs.map(l=>`<div class="log ${esc(l.type)}">
+      <span class="date">${fmtDate(l.date)}</span>
+      <span class="ttl">${esc(l.title)}${l.reading!=null&&l.reading!==""?` <span class="note num">@ ${fmtNum(num(l.reading))} ${mainLabel(m)}</span>`:""}${m2(m)&&l.reading2!=null&&l.reading2!==""?` <span class="note num">· ${fmtNum(num(l.reading2))} ${esc(m2(m).toLowerCase())} hrs</span>`:""}</span>
+      <span class="type ${esc(l.type)}">${l.type==="issue"?(l.resolved?"Fixed":"Problem"):esc(l.type)}</span>
+      ${l.details?`<div class="det">${esc(l.details)}</div>`:""}
+      ${l.parts?`<div class="det"><span class="note">Parts:</span> ${esc(l.parts)}</div>`:""}
+      <div class="by">${l.doneBy?"Done by "+esc(l.doneBy):""}${l.byName?` · logged by ${esc(l.byName)}`:""}
+        ${l.type==="issue"&&!l.resolved&&S.canWrite?` <button class="btn small" data-resolve="${esc(l.id)}">Mark fixed</button>`:""}</div>
+      </div>`).join("")}</div>`:`<div class="empty">No jobs logged yet.</div>`;
+  } else if(S.tab==="parts"){
+    const svc=(m.fluids||[]).filter(f=>f.per!=="L"&&(f.filter||f.system)),extra=m.partsList||[];
+    b.innerHTML=`<div class="filters" style="margin-bottom:10px"><input id="pq" type="search" placeholder="Search parts or part numbers" aria-label="Search parts"></div>
+    ${svc.length||extra.length?`<div class="tscroll"><table><thead><tr><th>Part</th><th>Part numbers</th><th class="pc">Price ex GST</th><th>Notes</th>${S.canEdit?"<th></th>":""}</tr></thead><tbody>
+      ${svc.length?`<tr class="grp"><td colspan="${S.canEdit?5:4}">Service parts (filters, belts)</td></tr>`+svc.map(f=>partRow(f.system,f.filter,rowPrice(f),f.spec||"",-1)).join(""):""}
+      ${extra.length?`<tr class="grp"><td colspan="${S.canEdit?5:4}">Other parts</td></tr>`+extra.map((p,i)=>partRow(p.name,p.numbers,num(p.price),[p.notes,p.added?"added "+fmtDate(p.added):""].filter(Boolean).join(" · "),i)).join(""):""}
+    </tbody></table></div>`:`<div class="empty">No parts listed yet.</div>`}
+    ${S.canWrite?`<form id="padd" style="margin-top:14px;display:flex;flex-direction:column;gap:8px;border:2px dashed var(--line);border-radius:10px;padding:12px"><h3 class="sec">Add a part</h3><div class="grid2"><label>Part<input id="pa-name" required placeholder="e.g. Shaker bearing"></label><label>Part numbers<input id="pa-nums" placeholder="e.g. CNH 123456; SKF 6207-2RS"></label><label class="pc">Price ex GST<input id="pa-price" type="number" step="any" inputmode="decimal"></label><label>Notes<input id="pa-notes" placeholder="Where it fits, supplier"></label></div><div style="display:flex;justify-content:flex-end"><button class="btn primary" id="pa-save">Add part</button></div><div class="note">Filters and belts used in services are edited under Edit details.</div></form>`:""}`;
+  } else if(S.tab==="videos"){
+    const vs=(m.videos||[]).filter(x=>x.url);
+    b.innerHTML=vs.length?vs.map(x=>`<div class="man"><div><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title||"Video")}</a>
+      <div class="kind">${esc(x.notes||"")}${x.notes?" · ":""}${/youtu\.?be/i.test(x.url)?"Opens in YouTube":"Opens in a new tab"}</div></div></div>`).join("")
+      :`<div class="empty">No video links yet${S.canEdit?". Add them under Edit details":""}.</div>`;
+  } else {
+    const ms=m.manuals||[];
+    b.innerHTML=(ms.length?ms.map(x=>{const href=x.url;
+      return `<div class="man"><div>${href?`<a href="${esc(href)}" target="_blank" rel="noopener">${esc(x.title||"Manual")}</a>`:`<b>${esc(x.title||"Manual")}</b>`}
+        <div class="kind">${esc(x.kind||"Manual")}${x.assetId?" · PDF stored here":href?" · external link":" · paper copy, no digital version yet"}</div></div></div>`}).join("")
+      :`<div class="empty">No manuals attached${S.canEdit?" — add a link (OneDrive or Google Drive share link) under Edit details":""}.</div>`);
+  }
+}
+$("#detail").addEventListener("click",async e=>{
+  const t=e.target.closest("[data-tab]");if(t){S.tab=t.dataset.tab;renderDetail();return}
+  const mm=S.machines.find(x=>x.id===S.sel);
+  const slc=e.target.closest("[data-sl]");if(slc&&mm){const iv=(mm.intervals||[])[+slc.dataset.sl];if(iv)SL.toggle(mm.id,iv.task);return}
+  const sv=e.target.closest("[data-sv]");if(sv&&mm){openService(mm,+sv.dataset.sv);return}
+  const pd=e.target.closest("[data-pdel]");if(pd&&mm){if(pd.dataset.armed!=="1"){pd.dataset.armed="1";pd.textContent="Tap again";return}
+    const list=(mm.partsList||[]).filter((_,i)=>i!==+pd.dataset.pdel);pd.disabled=true;
+    try{await S.db.doc("machines/"+mm.id).update({partsList:list});toast("Part removed")}catch(err){pd.disabled=false;writeFail(err)}return}
+  const a=e.target.closest("[data-act]");const m=S.machines.find(x=>x.id===S.sel);
+  if(a&&m){if(a.dataset.act==="edit")openEditor(m);else openLog(m,a.dataset.act==="issue"?"issue":"service");return}
+  const r=e.target.closest("[data-resolve]");
+  if(r){r.disabled=true;try{await S.db.doc("logs/"+r.dataset.resolve).update({resolved:true,resolvedDate:today()});toast("Marked fixed")}catch(err){r.disabled=false;writeFail(err)}}
+});
+$("#detail").addEventListener("input",e=>{if(e.target.id!=="pq")return;const q=e.target.value.trim().toLowerCase();
+  document.querySelectorAll("#tabBody tr[data-ptxt]").forEach(r=>{r.hidden=!!q&&!r.dataset.ptxt.includes(q)})});
+$("#detail").addEventListener("submit",async e=>{if(e.target.id!=="padd")return;e.preventDefault();
+  const mm=S.machines.find(x=>x.id===S.sel);if(!mm)return;const f=e.target,btn=f.querySelector("#pa-save");btn.disabled=true;
+  const p={name:f.querySelector("#pa-name").value.trim(),numbers:f.querySelector("#pa-nums").value.trim(),price:num(f.querySelector("#pa-price").value),notes:f.querySelector("#pa-notes").value.trim(),added:today(),by:S.uid||null};
+  if(!p.name){btn.disabled=false;return}
+  try{await S.db.doc("machines/"+mm.id).update({partsList:[...(mm.partsList||[]),p]});toast("Part added")}catch(err){btn.disabled=false;writeFail(err)}});
+async function resolveNames(ids){
+  if(!S.user||!ids.length)return; const need=[...new Set(ids)];
+  try{const ps=await S.user.profiles(need);need.forEach(id=>S.names[id]=(ps[id]&&ps[id].name)||"someone");
+    document.querySelectorAll("[data-uid]").forEach(el=>el.textContent=S.names[el.dataset.uid]||"someone")}catch(e){}
+}
+function writeFail(err){
+  if(err&&err.code==="invalid_argument"&&S.canWrite===null){S.canWrite=false;renderDetail()}
+  toast(err&&err.code==="quota_exceeded"?"Storage is full. Ask Damo to clear old records.":"Couldn't save. Check your connection and try again.");
+}
+
+/* ---------- log a job ---------- */
+function sheet(html){$("#sheetHost").innerHTML=`<div class="sheet"><div class="panel">${html}</div></div>`;
+  const s=$("#sheetHost .sheet");s.addEventListener("click",e=>{if(e.target===s||e.target.closest("[data-close]"))closeSheet()});return s}
+function closeSheet(){$("#sheetHost").innerHTML=""}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+
+function openLog(m,type){
+  const iv=m.intervals||[];
+  const s=sheet(`<h2>${type==="issue"?"Report a problem":"Log a job"}</h2><div class="note">${esc(m.name)}</div>
+  <form id="logForm" class="rowed" style="gap:10px">
+    <div class="grid2">
+      <label>Type<select id="lf-type">
+        <option value="service"${type==="service"?" selected":""}>Service</option>
+        <option value="repair">Repair</option>
+        <option value="issue"${type==="issue"?" selected":""}>Problem / needs attention</option>
+        <option value="note">Note</option></select></label>
+      <label>Date<input id="lf-date" type="date" value="${today()}" required></label>
+      <label>${m2(m)?"Engine hours":m.unit==="km"?"Odometer (km)":"Hour meter (hrs)"}<input id="lf-reading" type="number" inputmode="decimal" step="any" placeholder="${m.reading??""}"></label>
+      ${m2(m)?`<label>${esc(m2(m))} hours<input id="lf-reading2" type="number" inputmode="decimal" step="any" placeholder="${m.reading2??""}"></label>`:""}
+      <label>Done by<input id="lf-by" type="text" placeholder="Name" value="${esc(S.me?.name||"")}"></label>
+    </div>
+    <label>What was done / what's wrong<input id="lf-title" type="text" required placeholder="e.g. 500 hr service, hydraulic hose leaking at loader"></label>
+    <label>Details<textarea id="lf-det" rows="3"></textarea></label>
+    <label>Parts & oils used<input id="lf-parts" type="text" placeholder="e.g. Engine oil filter, 18 L 15W-40"></label>
+    <div id="lf-ivwrap" ${type==="service"&&iv.length?"":"hidden"}>
+      <div class="note" style="margin-bottom:4px">Tick the scheduled tasks this job covered:</div>
+      <div class="checks">${iv.map((x,i)=>`<label><input type="checkbox" id="lf-iv${i}" value="${i}"> ${esc(x.task)}</label>`).join("")}</div>
+    </div>
+    <div id="lf-err" class="err" hidden></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" id="lf-save">Save</button></div>
+  </form>`);
+  s.querySelector("#lf-type").addEventListener("change",e=>{s.querySelector("#lf-ivwrap").hidden=!(e.target.value==="service"&&iv.length)});
+  s.querySelector("#logForm").addEventListener("submit",async e=>{
+    e.preventDefault();const btn=s.querySelector("#lf-save");btn.disabled=true;
+    const ty=s.querySelector("#lf-type").value, date=s.querySelector("#lf-date").value, rd=num(s.querySelector("#lf-reading").value), rd2El=s.querySelector("#lf-reading2"), rd2=rd2El?num(rd2El.value):null;
+    const log={machineId:m.id,type:ty,date,reading:rd,title:s.querySelector("#lf-title").value.trim(),details:s.querySelector("#lf-det").value.trim(),
+      parts:s.querySelector("#lf-parts").value.trim(),doneBy:s.querySelector("#lf-by").value.trim(),by:S.uid||null,byName:S.me?.name||"",createdAt:Date.now(),resolved:false,reading2:rd2};
+    try{
+      await S.db.collection("logs").add(log);
+      const patch={};
+      if(rd!=null&&(num(m.reading)==null||rd>=num(m.reading))){patch.reading=rd;patch.readingDate=date}
+      if(rd2!=null&&(num(m.reading2)==null||rd2>=num(m.reading2))){patch.reading2=rd2;patch.reading2Date=date}
+      if(ty==="service"){const done=[...s.querySelectorAll(".checks input:checked")].map(c=>+c.value);
+        if(done.length){patch.intervals=(m.intervals||[]).map((x,i)=>done.includes(i)?{...x,lastAt:((x.meter==="2"&&m2(m))?rd2:rd)??x.lastAt??null,lastDate:date}:x)}}
+      if(Object.keys(patch).length) await S.db.doc("machines/"+m.id).update(patch);
+      closeSheet();toast(ty==="issue"?"Problem reported":"Job logged");
+    }catch(err){btn.disabled=false;const el=s.querySelector("#lf-err");el.hidden=false;el.textContent="Couldn't save this entry. Check your connection and try again.";if(err&&err.code==="invalid_argument")writeFail(err)}
+  });
+}
+
+/* ---------- edit machine (editors) ---------- */
+function rowsEditor(id,cols,rows,ph){
+  return `<div class="rowed" id="${id}" style="--cols:${cols.length}">${(rows.length?rows:[{}]).map(r=>rowHtml(cols,r,ph)).join("")}
+  </div><button type="button" class="btn small" data-addrow="${id}">Add row</button>`;
+}
+const norm=s=>String(s||"").toLowerCase().replace(/[\s\-]/g,"");
+const oilById=id=>id?S.oils.find(o=>o.id===id):null;
+function rowPrice(f){const o=oilById(f.oilId);if(o&&num(o.price)!=null)return num(o.price);return num(f.price)}
+const oilMatches=(o,spec)=>!!(o&&spec&&((o.grade&&norm(spec).includes(norm(o.grade)))||String(o.specs||"").split(",").some(t=>norm(t).length>2&&norm(spec).includes(norm(t)))));
+function oilNote(f){const o=oilById(f.oilId);if(!o)return "";
+  const bad=o.grade&&f.spec&&!oilMatches(o,f.spec);
+  return `<div class="note" style="margin-top:3px">Using: <b>${esc(o.name)}</b>${bad?` <span class="chip warn">Check grade</span>`:""}</div>`}
+function oilSelect(c,r){const os=S.oils.map(o=>({o,m:oilMatches(o,r.spec)})).sort((a,b)=>b.m-a.m||(a.o.name||"").localeCompare(b.o.name||""));
+  return `<select data-f="${c.f}" aria-label="${esc(c.l)}"><option value="">${S.oils.length?"Oil from farm store…":"No farm oils yet"}</option>${os.map(({o,m})=>`<option value="${esc(o.id)}"${r.oilId===o.id?" selected":""}>${m?"✓ ":""}${esc(o.name)}${num(o.price)!=null?" – "+money(o.price)+"/L":""}</option>`).join("")}</select>`}
+function rowHtml(cols,r,ph){return `<div class="r">${cols.map(c=>c.oilSel?oilSelect(c,r):c.opts
+  ?`<select data-f="${c.f}" aria-label="${esc(c.l)}">${c.opts.map(o=>`<option value="${o[0]}"${r[c.f]===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select>`
+  :`<input data-f="${c.f}" aria-label="${esc(c.l)}" placeholder="${esc(c.l)}" value="${esc(r[c.f]??"")}"${c.n?' type="number" step="any"':""}>`).join("")}
+  ${r.id?`<input type="hidden" data-f="id" value="${esc(r.id)}">`:""}${r.assetId?`<input type="hidden" data-f="assetId" value="${esc(r.assetId)}">`:""}
+  <button type="button" class="btn small" data-delrow aria-label="Remove row">✕</button></div>`}
+const FLUID_COLS=[{f:"system",l:"Item (e.g. Engine oil filter, Fan belt)"},{f:"spec",l:"Oil / fluid spec"},{f:"qty",l:"Qty / capacity"},{f:"filter",l:"Part numbers"},{f:"price",l:"Price ex GST",n:true},{f:"per",l:"Per",opts:[["each","each"],["L","litre"]]},{f:"oilId",l:"Oil from farm store",oilSel:true}];
+const OIL_TYPES=["Engine oil","Transmission & hydraulic","Gear oil","Coolant","Grease","Other"];
+const OIL_COLS=[{f:"name",l:"Name (e.g. Hi-Tech 15W-40)"},{f:"type",l:"Type",opts:[["","Type…"],...OIL_TYPES.map(t=>[t,t])]},{f:"grade",l:"Grade (e.g. 15W-40)"},{f:"specs",l:"Specs / approvals"},{f:"price",l:"$ per litre ex GST",n:true},{f:"pack",l:"Pack (e.g. 205 L drum)"}];
+const IV_COLS=[{f:"task",l:"Task (e.g. Engine oil & filter)"},{f:"every",l:"Every",n:true},{f:"unit",l:"Unit",opts:[["hrs","hrs / km"],["months","months"]]},{f:"months",l:"or months",n:true},{f:"meter",l:"Counts on",opts:[["","Main meter"],["2","Second meter"]]},{f:"parts",l:"Parts used (e.g. Engine oil filter x1; Engine oil x15)"}];
+const MAN_COLS=[{f:"title",l:"Title"},{f:"kind",l:"Type",opts:[["Operator's manual","Operator's"],["Workshop manual","Workshop"],["Parts book","Parts book"],["Other","Other"]]},{f:"url",l:"Link (https://…)"}];
+const IDS_COLS=[{f:"label",l:"Label (e.g. Transmission no.)"},{f:"value",l:"Number"}];
+
+function openEditor(m){
+  const isNew=!m; m=m||{intervals:[],fluids:[],manuals:[],otherIds:[],unit:"hrs"};
+  const v=k=>esc(m[k]??"");
+  const s=sheet(`<h2>${isNew?"Add machine":"Edit "+esc(m.name)}</h2>
+  <form id="edForm" style="display:flex;flex-direction:column;gap:14px">
+    <div class="grid2">
+      <label>Name<input id="ed-name" required value="${v("name")}" placeholder="e.g. JD 8R tractor"></label>
+      <label>Category<input id="ed-category" value="${v("category")}" list="catlist" placeholder="Tractor, Header, Truck…"></label>
+      <label>Make<input id="ed-make" value="${v("make")}"></label>
+      <label>Model<input id="ed-model" value="${v("model")}"></label>
+      <label>Year<input id="ed-year" value="${v("year")}"></label>
+      <label>Rego<input id="ed-rego" value="${v("rego")}"></label>
+      <label>Serial / VIN<input id="ed-serial" value="${v("serial")}"></label>
+      <label>Engine no.<input id="ed-engineNo" value="${v("engineNo")}"></label>
+      <label>Measured in<select id="ed-unit"><option value="hrs"${m.unit!=="km"?" selected":""}>Hours</option><option value="km"${m.unit==="km"?" selected":""}>Kilometres</option></select></label>
+      <label>Current reading<input id="ed-reading" type="number" step="any" value="${v("reading")}"></label>
+      <label>Second hour meter (optional)<input id="ed-meter2" value="${v("meter2")}" placeholder="e.g. Rotor"></label>
+      <label>Second meter reading<input id="ed-reading2" type="number" step="any" value="${v("reading2")}"></label>
+    </div>
+    <datalist id="catlist">${[...new Set(S.machines.map(x=>x.category).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join("")}</datalist>
+    ${S.assets?`<div class="photoed"><div class="prev" id="ed-photo-prev">${m.photoId?`<img src="${photoSrc(m.photoId)}" alt="">`:"No photo"}</div>
+      <div style="display:flex;flex-direction:column;gap:6px"><label>Machine photo<input type="file" id="ed-photo" accept="image/*"></label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn small" id="ed-photo-rm"${m.photoId?"":" hidden"}>Remove photo</button><span id="ed-photo-st" class="note"></span></div></div></div>`:""}
+    <div><h3 style="margin-bottom:6px">Other ID numbers</h3>${rowsEditor("ed-ids",IDS_COLS,m.otherIds||[])}</div>
+    <div><h3 style="margin-bottom:6px">Service intervals</h3>${rowsEditor("ed-iv",IV_COLS,(m.intervals||[]).map(x=>({...x,unit:x.unit==="months"?"months":"hrs"})))}</div>
+    <div><h3 style="margin-bottom:6px">Oils, filters & belts</h3>${rowsEditor("ed-fl",FLUID_COLS,m.fluids||[])}</div>
+    <div><h3 style="margin-bottom:6px">Manuals</h3>${rowsEditor("ed-man",MAN_COLS,(m.manuals||[]).map(x=>({...x,url:x.assetId?"(uploaded PDF)":x.url})))}
+      ${false?`<label style="margin-top:8px">Upload a PDF manual<input type="file" id="ed-pdf" accept="application/pdf"></label><div id="ed-up" class="note"></div>`:""}</div>
+    <div><h3 style="margin-bottom:6px">Video links</h3>${rowsEditor("ed-vid",VID_COLS,m.videos||[])}</div>
+    <label>Notes<textarea id="ed-notes" rows="3">${v("notes")}</textarea></label>
+    <div id="ed-err" class="err" hidden></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
+      <div>${!isNew?`<button type="button" class="btn" id="ed-del">Remove machine</button>`:""}</div>
+      <div style="display:flex;gap:8px"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" id="ed-save">Save</button></div>
+    </div>
+  </form>`);
+  const VID_COLS=[{f:"title",l:"Title"},{f:"url",l:"Link (https://…)"},{f:"notes",l:"Notes"}];
+  const colsFor={"ed-ids":IDS_COLS,"ed-iv":IV_COLS,"ed-fl":FLUID_COLS,"ed-man":MAN_COLS,"ed-vid":VID_COLS};
+  s.addEventListener("click",e=>{
+    const a=e.target.closest("[data-addrow]");if(a){$("#"+a.dataset.addrow).insertAdjacentHTML("beforeend",rowHtml(colsFor[a.dataset.addrow],{}));return}
+    const d=e.target.closest("[data-delrow]");if(d)d.closest(".r").remove();
+  });
+  const pdf=s.querySelector("#ed-pdf");
+  if(pdf)pdf.addEventListener("change",async()=>{const f=pdf.files[0];if(!f)return;const st=s.querySelector("#ed-up");st.textContent="Uploading…";
+    try{const r=await S.assets.upload(f,{type:"application/pdf"});
+      $("#ed-man").insertAdjacentHTML("beforeend",rowHtml(MAN_COLS,{title:f.name.replace(/\.pdf$/i,""),kind:"Workshop manual",url:"(uploaded PDF)",assetId:r.id}));
+      st.textContent="Uploaded. Give it a title, then Save.";pdf.value=""}
+    catch(err){st.textContent=err&&err.code==="too_large"?"That PDF is over 20 MB. Split it or link to it instead.":"Upload failed. Try again."}});
+  let photoId=m.photoId||null;const ph=s.querySelector("#ed-photo");
+  if(ph){const prev=s.querySelector("#ed-photo-prev"),st=s.querySelector("#ed-photo-st"),rm=s.querySelector("#ed-photo-rm");
+    ph.addEventListener("change",async()=>{const f=ph.files[0];if(!f)return;st.textContent="Uploading…";
+      try{const blob=await shrinkPhoto(f);const r=await S.assets.upload(blob,{type:blob.type||"image/jpeg"});photoId=r.id;
+        prev.innerHTML=`<img src="${esc(r.url)}" alt="">`;rm.hidden=false;st.textContent="Photo ready. Save to keep it.";ph.value=""}
+      catch(err){st.textContent=err&&err.code==="unsupported_type"?"That photo type won't upload. Use a JPG or PNG.":err&&err.code==="too_large"?"That photo is too big. Try a smaller one.":"Upload failed. Try again."}});
+    rm.addEventListener("click",()=>{photoId=null;prev.textContent="No photo";rm.hidden=true;st.textContent="Photo will be removed when you save."})}
+  const del=s.querySelector("#ed-del");let armed=false;
+  if(del)del.addEventListener("click",async()=>{if(!armed){armed=true;del.textContent="Tap again to remove";return}
+    try{await S.db.doc("machines/"+m.id).delete();S.sel=null;closeSheet();toast("Machine removed");renderDetail()}catch(err){writeFail(err)}});
+  const read=id=>[...s.querySelectorAll("#"+id+" .r")].map(r=>{const o={};r.querySelectorAll("[data-f]").forEach(i=>o[i.dataset.f]=i.value.trim());return o});
+  s.querySelector("#edForm").addEventListener("submit",async e=>{
+    e.preventDefault();const btn=s.querySelector("#ed-save");btn.disabled=true;
+    const g=id=>s.querySelector("#ed-"+id).value.trim();
+    const old=m.intervals||[];
+    const data={photoId:photoId||null,name:g("name"),category:g("category"),make:g("make"),model:g("model"),year:g("year"),rego:g("rego"),serial:g("serial"),engineNo:g("engineNo"),
+      unit:g("unit"),meter2:g("meter2"),reading2:num(g("reading2")),reading2Date:num(g("reading2"))!==num(m.reading2)?today():(m.reading2Date||null),reading:num(g("reading")),readingDate:num(g("reading"))!==num(m.reading)?today():(m.readingDate||null),notes:g("notes"),
+      otherIds:read("ed-ids").filter(r=>r.label||r.value),
+      fluids:read("ed-fl").filter(r=>r.system||r.spec||r.qty||r.filter||r.price).map(r=>({...r,price:num(r.price)})),
+      intervals:read("ed-iv").filter(r=>r.task).map(r=>{const prev=old.find(o=>o.task===r.task)||{};return {task:r.task,every:num(r.every),unit:r.unit,months:r.unit==="months"?null:num(r.months),meter:r.meter||"",parts:r.parts||"",lastAt:prev.lastAt??null,lastDate:prev.lastDate??null}}),
+      manuals:read("ed-man").filter(r=>r.title||r.url||r.assetId).map(r=>r.assetId?{title:r.title,kind:r.kind,assetId:r.assetId}:{title:r.title,kind:r.kind,url:r.url})};
+    data.videos=read("ed-vid").filter(r=>r.title||r.url).map(r=>({title:r.title,url:r.url,notes:r.notes||""}));
+    const badV=data.videos.find(x=>!/^https?:\/\//i.test(x.url||""));
+    if(badV){btn.disabled=false;const el=s.querySelector("#ed-err");el.hidden=false;el.textContent=`The video link for "${badV.title||"a video"}" needs to start with https://`;return}
+    const bad=data.manuals.find(x=>x.url&&!/^https?:\/\//i.test(x.url));
+    if(bad){btn.disabled=false;const el=s.querySelector("#ed-err");el.hidden=false;el.textContent=`The link for "${bad.title||"a manual"}" needs to start with https://`;return}
+    try{const id=isNew?(data.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"machine")+"-"+Math.random().toString(36).slice(2,6):m.id;
+      await S.db.doc("machines/"+id).set(data);if(m.photoId&&m.photoId!==photoId&&S.assets)S.assets.delete(m.photoId).catch(()=>{});closeSheet();toast("Saved");if(isNew)select(id)}
+    catch(err){btn.disabled=false;const el=s.querySelector("#ed-err");el.hidden=false;el.textContent="Couldn't save. Check your connection and try again.";}
+  });
+}
+$("#addMachine").addEventListener("click",()=>openEditor(null));
+async function shrinkPhoto(file){
+  try{const bmp=await createImageBitmap(file);const k=Math.min(1,1400/Math.max(bmp.width,bmp.height));
+    const c=document.createElement("canvas");c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
+    c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||file),"image/jpeg",0.85))}catch(e){return file}
+}
+
+/* ---------- farm oil store ---------- */
+function openOils(){
+  const used=id=>S.machines.filter(m=>(m.fluids||[]).some(f=>f.oilId===id)).map(m=>m.name);
+  const ti=t=>{const i=OIL_TYPES.indexOf(t||"");return i<0?99:i};
+  const list=S.oils.slice().sort((a,b)=>ti(a.type)-ti(b.type)||(a.name||"").localeCompare(b.name||""));
+  const grp=i=>i===0||(list[i-1].type||"")!==(list[i].type||"")?`<tr class="grp"><td colspan="6">${esc(list[i].type||"No type set")}</td></tr>`:"";
+  const s=sheet(`<h2>Farm oils</h2><div class="note">Oils kept on the farm, priced per litre ex GST. Link them to a machine's oil rows under Edit details, and that machine's service costs use these prices.</div>
+  ${list.length?`<div class="tscroll"><table><thead><tr><th>Oil</th><th>Grade</th><th>Specs</th><th class="pc">$/L</th><th>Pack</th><th>Used in</th></tr></thead><tbody>${list.map((o,i)=>grp(i)+`<tr><td>${o.photoId?`<img src="${photoSrc(o.photoId)}" alt="" onerror="this.remove()" style="width:40px;height:40px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px">`:""}${esc(o.name)}</td><td>${esc(o.grade)}</td><td>${esc(o.specs||"")}</td><td class="num pc">${num(o.price)!=null?money(o.price):"—"}</td><td>${esc(o.pack)}</td><td>${esc(used(o.id).join(", ")||"—")}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No farm oils yet.</div>`}
+  ${S.canEdit?`<form id="oilForm" style="display:flex;flex-direction:column;gap:10px"><h3>Edit oils</h3><div id="oil-scan" hidden><label>Add an oil from a photo of its label<input type="file" id="oil-photo" accept="image/*"></label><div id="oil-scan-st" class="note" style="margin-top:4px">Take or pick a clear photo of the label. The scanner reads the name, grade and specs, then you add the price.</div></div>${rowsEditor("ed-oils",OIL_COLS,list.map(o=>({...o,assetId:o.photoId||""})))}<div id="oil-err" class="err" hidden></div><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" data-close>Close</button><button class="btn primary" id="oil-save">Save oils</button></div></form>`:`<div style="display:flex;justify-content:flex-end"><button type="button" class="btn" data-close>Close</button></div>`}`);
+  if(!S.canEdit)return;
+  scanLabels(s);
+  s.addEventListener("click",e=>{const a=e.target.closest("[data-addrow]");if(a){$("#ed-oils").insertAdjacentHTML("beforeend",rowHtml(OIL_COLS,{}));return}
+    const d=e.target.closest("[data-delrow]");if(d)d.closest(".r").remove()});
+  s.querySelector("#oilForm").addEventListener("submit",async e=>{e.preventDefault();const btn=s.querySelector("#oil-save");btn.disabled=true;
+    const rows=[...s.querySelectorAll("#ed-oils .r")].map(r=>{const o={};r.querySelectorAll("[data-f]").forEach(i=>o[i.dataset.f]=i.value.trim());return o}).filter(r=>r.name);
+    const keep=new Set();
+    try{for(const r of rows){const id=r.id||(r.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"oil")+"-"+Math.random().toString(36).slice(2,6);keep.add(id);
+        const old=oilById(id),data={name:r.name,type:r.type||"",grade:r.grade||"",specs:r.specs||"",price:num(r.price),pack:r.pack||"",photoId:r.assetId||""};
+        const was=old?{name:old.name,type:old.type||"",grade:old.grade||"",specs:old.specs||"",price:num(old.price),pack:old.pack||"",photoId:old.photoId||""}:null;
+        if(!was||JSON.stringify(was)!==JSON.stringify(data))await S.db.doc("oils/"+id).set(data)}
+      for(const o of S.oils)if(!keep.has(o.id))await S.db.doc("oils/"+o.id).delete();
+      closeSheet();toast("Oils saved")}
+    catch(err){btn.disabled=false;const el=s.querySelector("#oil-err");el.hidden=false;el.textContent="Couldn't save the oils. Check your connection and try again."}});
+}
+$("#oilsBtn").addEventListener("click",openOils);
+const LABEL_PROMPT='This is a photo of an oil, lubricant or coolant container label on an Australian farm. Read the label and reply with only a JSON object: {"name": brand and product name as printed, e.g. "Penrite Heavy Duty Diesel 15W-40", "type": exactly one of "Engine oil", "Transmission & hydraulic", "Gear oil", "Coolant", "Grease", "Other", "grade": the viscosity or ISO grade only, e.g. "15W-40", "80W-90", "46" ("" if none), "specs": the key specifications and OEM approvals printed, comma separated, e.g. "API CK-4, Cummins CES 20086" ("" if none), "pack": the container size, e.g. "20 L" ("" if not shown)}. Use only what is printed on the label and leave a field as "" if you cannot read it. If the photo is not of an oil or lubricant label, reply {"name":"","grade":"","specs":"","pack":""}.';
+async function scanLabels(s){
+  const smp=await getScanner();if(!smp)return;
+  const lim=await smp.limits().catch(()=>null);if(!lim||!lim.images)return;
+  const box=s.querySelector("#oil-scan");if(!box||!box.isConnected)return;box.hidden=false;
+  const inp=s.querySelector("#oil-photo"),st=s.querySelector("#oil-scan-st");
+  const clean=v=>typeof v==="string"?v.trim().slice(0,200):"";
+  inp.addEventListener("change",async()=>{const f=inp.files[0];if(!f)return;inp.disabled=true;st.textContent="Reading the label… this can take up to a minute.";
+    try{const img=await shrinkPhoto(f);
+      const r=await smp.json(LABEL_PROMPT,{images:img});
+      const row={name:clean(r&&r.name),type:OIL_TYPES.includes(r&&r.type)?r.type:"",grade:clean(r&&r.grade),specs:clean(r&&r.specs),pack:clean(r&&r.pack)};
+      if(!row.name&&!row.grade){st.textContent="Couldn't find an oil label in that photo. Try a closer, straight-on shot.";return}
+      if(S.assets){try{row.assetId=(await S.assets.upload(img,{type:img.type||"image/jpeg"})).id}catch(e){}}
+      const list=s.querySelector("#ed-oils"),blank=[...list.querySelectorAll(".r")].find(x=>[...x.querySelectorAll("input[data-f]")].every(i=>!i.value));
+      if(blank)blank.remove();
+      list.insertAdjacentHTML("beforeend",rowHtml(OIL_COLS,row));
+      const pi=[...list.querySelectorAll(".r")].pop().querySelector('[data-f="price"]');if(pi)pi.focus();
+      st.textContent=`Added ${row.name||row.grade}. Check the details, enter the price per litre, then tap Save oils.`}
+    catch(e){st.textContent=e&&e.code==="not_granted"?"Label reading wasn't allowed, so add the oil by hand.":e&&e.code==="rate_limited"?"Too many requests just now. Try again in a minute.":e&&e.code==="image_rejected"?"That photo couldn't be read. Try a JPG or PNG.":"Couldn't read that label. Try again or add the oil by hand."}
+    finally{inp.disabled=false;inp.value=""}});
+}
+
+/* ---------- boot ---------- */
+(async()=>{
+  const me=await requireMember();
+  S.me=me;S.uid=me.uid;S.isAdmin=me.role==="admin";S.canEdit=S.isAdmin;S.canWrite=me.role!=="family";
+  document.body.classList.toggle("noprice",!S.isAdmin);
+  const db=makeDb("workshop_");S.db=db;S.assets=S.isAdmin?photoStore(db):null;
+  db.collection("photos").onSnapshot(s=>{s.docs.forEach(d=>S.photos[d.id]=d.data().data);if(S.ready){renderList();renderDetail()}},()=>{});
+  $("#addMachine").hidden=!S.canEdit;
+  if(!db){S.ready=true;renderList();return}
+  let gotM=false,gotL=false;
+  const done=()=>{if(gotM&&gotL){S.ready=true;
+    if(!S.sel){const h=location.hash.slice(1);if(h&&S.machines.some(m=>m.id===h))S.sel=h;else if(window.innerWidth>820&&S.machines[0])S.sel=S.machines[0].id}
+    const n=S.machines.length,a=S.machines.filter(m=>machineState(m).cls==="bad").length,d=S.machines.filter(m=>machineState(m).cls==="warn").length;
+    $("#sub").textContent=`${n} machine${n===1?"":"s"}${a?` · ${a} need attention`:""}${d?` · ${d} service due`:""}`;
+    renderList();renderDetail()}};
+  $("#oilsBtn").hidden=false;
+  db.collection("oils").onSnapshot(s=>{S.oils=s.docs.map(d=>({id:d.id,...d.data()}));if(S.ready)renderDetail()},()=>{});
+  db.collection("machines").onSnapshot(s=>{S.machines=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));gotM=true;done()},
+    ()=>{gotM=true;done()});
+  db.collection("logs").onSnapshot(s=>{S.logs=s.docs.map(d=>({id:d.id,...d.data()}));gotL=true;done()},
+    ()=>{gotL=true;done()});
+})();
+</script>
+
+</body></html>

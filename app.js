@@ -183,7 +183,7 @@ async function renderHome() {
   const builtIn = [
     { icon: "🌾", title: "Harvest Grain Tracker", desc: me.role === "admin" ? "Loads, contracts, payments and totals" : "Log loads into silos, bags and receival sites", href: "grain.html" },
     { icon: "🧪", title: me.role === "admin" ? "Chemical Costs & Labels" : "Chemical Labels", desc: me.role === "admin" ? "Chemical spend, invoices and label facts" : "Label facts, rates and withholding periods", href: "chemicals.html" },
-    { icon: "🔧", title: "Machinery", desc: "Machines, service records, parts and manuals", href: "#/machines" },
+    { icon: "🔧", title: "Gunnadoo Workshop", desc: me.role === "admin" ? "Machinery, services, parts, oils and costs" : "Machinery, service schedules, parts and manuals", href: "workshop.html" },
     { icon: "🗺️", title: "Paddock maps", desc: "Paddock boundaries and crop types", href: "#/maps", soon: true },
   ];
   if (isAdmin()) builtIn.push({ icon: "⚙️", title: "Admin", desc: "People, logins and homepage links", href: "#/admin" });
@@ -466,7 +466,7 @@ function linkDialog(t = {}) {
 }
 
 // ---------- admin: import data file ----------
-const IMPORTABLE = /^(grain_(deliveries|outloads|contracts|pricing|lists|settings)|chem_(products|purchases|labels)|machines)$/;
+const IMPORTABLE = /^(grain_(deliveries|outloads|contracts|pricing|lists|settings)|chem_(products|purchases|labels)|workshop_(machines|logs|oils|photos)|machines)$/;
 function adminImport() {
   const body = document.getElementById("adminBody");
   body.innerHTML = `<div class="card"><h3>Import a data file</h3>

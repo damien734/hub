@@ -67,7 +67,7 @@ body.staff .own{display:none!important}
    <label>Stored in<select id="f_store"></select></label>
    <label>Site / silo / bag<select id="f_site"></select></label>
   </div>
-  <div id="addBox" class="row hide"><input id="addIn" style="flex:1"><button class="p" id="addOk">Add</button><button class="s" id="addNo">Cancel</button></div>
+  <div id="addBox" class="row hide"><input id="addIn" style="flex:1"><select id="addCrop" class="hide"></select><button class="p" id="addOk">Add</button><button class="s" id="addNo">Cancel</button></div>
   <div class="grid">
    <label>Paddock<select id="f_paddock"></select></label>
    <label>Tonnes<input type="number" id="f_t" step="0.01" inputmode="decimal"></label>
@@ -160,7 +160,7 @@ const money=n=>"$"+fmt(n,0);
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const num=id=>{const v=$(id).value;return v===""?null:Number(v)};
 const CROPS=["Wheat","Canola","Barley","Faba Beans"],DEF=["Receival site","Own silo","Grain bag"],GR={Wheat:["H1","H2","APW1","AH1","ASW1","Feed"],Barley:["Malt 1","Food 1","Feed 1","Feed 2"]};
-let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
+let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={pcrops:{},paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
 const owner=()=>admin&&!pv;
 const adj=(crop,oil,p)=>crop==="Canola"&&oil!=null?p*(1+S.oilRate/100*(oil-S.oilBase)):p;
 const cleanT=d=>d.crop==="Canola"?d.t*(1-(d.adm||0)/100):d.t;
@@ -181,24 +181,30 @@ const opts=(list,cur,ph,staffAdd)=>{const a=[...list];if(cur&&!a.includes(cur))a
 function setSS(store,site){curStore=store;curSite=site||"";$("#f_store").innerHTML=opts(L.stores,store);$("#f_store").value=store;$("#f_site").innerHTML=opts(L.sites[store]||[],curSite,"— select —",true);$("#f_site").value=curSite}
 const padList=()=>[...new Set([...(L.paddocks||[]),...D.map(d=>d.paddock).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
 function setPad(v){curPad=v||"";$("#f_paddock").innerHTML=opts(padList(),curPad,"— select paddock —",true);$("#f_paddock").value=curPad}
-$("#f_paddock").onchange=e=>{if(e.target.value==="__add"){setPad(curPad);showAdd("paddock");return}curPad=e.target.value};
+const yrOf=dt=>String(dt||today()).slice(0,4);
+function padCrop(n,dt){const y=yrOf(dt),c=((L.pcrops||{})[y]||{})[n];if(c&&CROPS.includes(c))return c;
+  const r=D.filter(d=>d.paddock===n&&String(d.date||"").slice(0,4)===y).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0))[0];return r?r.crop:""}
+$("#addCrop").innerHTML=`<option value="">— grain —</option>`+CROPS.map(c=>`<option>${c}</option>`).join("");
+let padWarn="";
+$("#f_paddock").onchange=e=>{if(e.target.value==="__add"){setPad(curPad);showAdd("paddock");return}curPad=e.target.value;const c=padCrop(curPad,$("#f_date").value);if(c&&c!==$("#f_crop").value){setCrop(c);status(`${curPad} is ${c} this year, so the crop has been set to ${c}.`)}};
 const fillSelects=()=>{setSS(curStore||L.stores[0],curSite);setGrade(curGrade);setPad(curPad)};
 function setGrade(g){curGrade=g||"";$("#f_grade").innerHTML=opts(L.grades[$("#f_crop").value]||[],curGrade,"— select —");$("#f_grade").value=curGrade}
-function showAdd(k){addKind=k;$("#addIn").placeholder=k==="store"?"New storage type":k==="grade"?"New grade":k==="paddock"?"New paddock name":"New silo / bag name";$("#addIn").value="";$("#addBox").classList.remove("hide");$("#addIn").focus()}
+function showAdd(k){addKind=k;$("#addIn").placeholder=k==="store"?"New storage type":k==="grade"?"New grade":k==="paddock"?"New paddock name":"New silo / bag name";$("#addIn").value="";$("#addCrop").value="";$("#addCrop").classList.toggle("hide",k!=="paddock");$("#addBox").classList.remove("hide");$("#addIn").focus()}
 $("#f_store").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("store");return}setSS(e.target.value,"")};
 $("#f_site").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("site");return}curSite=e.target.value};
 $("#addNo").onclick=()=>$("#addBox").classList.add("hide");
 $("#f_grade").onchange=e=>{if(e.target.value==="__add"){setGrade(curGrade);showAdd("grade");return}curGrade=e.target.value};
 const saveL=async()=>{try{await db.doc("lists/main").set(L)}catch(e){status("Could not save the list.",true)}};
 $("#addOk").onclick=async()=>{const v=$("#addIn").value.trim();if(!v)return;
+  if(addKind==="paddock"&&!$("#addCrop").value){status("Choose the grain for this paddock for this year.",true);return}
   if(addKind==="store"){if(!L.stores.includes(v))L.stores.push(v);setSS(v,"")}
   else if(addKind==="grade"){const c=$("#f_crop").value;(L.grades[c]=L.grades[c]||[]);if(!L.grades[c].includes(v))L.grades[c].push(v);setGrade(v)}
-  else if(addKind==="paddock"){L.paddocks=L.paddocks||[];if(!L.paddocks.includes(v))L.paddocks.push(v);setPad(v)}
+  else if(addKind==="paddock"){L.paddocks=L.paddocks||[];if(!L.paddocks.includes(v))L.paddocks.push(v);const gc=$("#addCrop").value,y=yrOf($("#f_date").value);L.pcrops=L.pcrops||{};(L.pcrops[y]=L.pcrops[y]||{})[v]=gc;status("");if($("#f_crop").value!==gc)setCrop(gc);setPad(v)}
   else{(L.sites[curStore]=L.sites[curStore]||[]);if(!L.sites[curStore].includes(v))L.sites[curStore].push(v);setSS(curStore,v)}
   $("#addBox").classList.add("hide");await saveL();renderLists()};
 function renderLists(){$("#listMgr").innerHTML=`<div style="margin-bottom:8px"><b>Paddocks</b><div>${(L.paddocks||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-pd="1" data-pn="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No paddocks yet</span>`}</div></div>`+["Wheat","Barley"].map(c=>`<div style="margin-bottom:8px"><b>${c} grades</b><div>${(L.grades[c]||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-g="${c}" data-n="${esc(n)}">×</button></span>`).join("")}</div></div>`).join("")+L.stores.map(s=>`<div style="margin-bottom:8px"><b>${esc(s)}</b> <button class="x" data-rs="${esc(s)}">remove</button><div>${(L.sites[s]||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-s="${esc(s)}" data-n="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No sites yet</span>`}</div></div>`).join("")}
 $("#listMgr").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.pd){L.paddocks=(L.paddocks||[]).filter(x=>x!==b.dataset.pn)}
+  if(b.dataset.pd){L.paddocks=(L.paddocks||[]).filter(x=>x!==b.dataset.pn);Object.values(L.pcrops||{}).forEach(m=>delete m[b.dataset.pn])}
   else if(b.dataset.g){L.grades[b.dataset.g]=(L.grades[b.dataset.g]||[]).filter(x=>x!==b.dataset.n)}
   else if(b.dataset.rs){L.stores=L.stores.filter(x=>x!==b.dataset.rs);delete L.sites[b.dataset.rs]}
   else if(b.dataset.n){L.sites[b.dataset.s]=(L.sites[b.dataset.s]||[]).filter(x=>x!==b.dataset.n)}
@@ -231,6 +237,7 @@ $("#cancelDel").onclick=()=>{endEdit();$("#f_docket").value="";$("#f_t").value="
 $("#saveDel").onclick=async()=>{const d=readDel();
   if(!d.date||!d.t||d.t<=0){status("Enter the tonnes.",true);return}
   if(!d.paddock){status("Choose the paddock this load came from.",true);return}
+  {const pc=padCrop(d.paddock,d.date),wk=d.paddock+"|"+d.crop+"|"+yrOf(d.date);if(pc&&pc!==d.crop&&padWarn!==wk){padWarn=wk;status(`${d.paddock} is ${pc} this year, but this load is ${d.crop}. Tap Save again if that is right.`,true);return}}
   const nm=$("#f_name").value.trim();if(!nm){status("Your login has no name. Sign out and back in.",true);return}
   if(/receival/i.test(d.store)){const miss=d.crop==="Canola"?(d.oil==null||d.adm==null?"oil % and admixture %":""):(d.crop==="Wheat"||d.crop==="Barley")?(d.prot==null||!d.grade?"protein % and grade":""):"";if(miss){status(`Receival site loads need ${miss} entered with the tonnes.`,true);return}}
   if(!db){status("Saving is not available in this view.",true);return}
@@ -379,7 +386,7 @@ setCrop("Wheat");setSS(L.stores[0],"");mode();
   db.collection("outloads").onSnapshot(s=>{O=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.collection("contracts").onSnapshot(s=>{C=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.doc("settings/main").onSnapshot(s=>{if(s.exists)S={...S,...s.data()};renderAll()},()=>{});
-  db.doc("lists/main").onSnapshot(s=>{if(s.exists){const x=JSON.parse(JSON.stringify(s.data()));L={paddocks:x.paddocks||[],stores:x.stores||[...DEF],sites:x.sites||{},grades:x.grades||JSON.parse(JSON.stringify(GR))};fillSelects();renderAll()}},()=>{});
+  db.doc("lists/main").onSnapshot(s=>{if(s.exists){const x=JSON.parse(JSON.stringify(s.data()));L={pcrops:x.pcrops||{},paddocks:x.paddocks||[],stores:x.stores||[...DEF],sites:x.sites||{},grades:x.grades||JSON.parse(JSON.stringify(GR))};fillSelects();renderAll()}},()=>{});
   if(admin)db.collection("pricing").onSnapshot(s=>{P={};s.docs.forEach(x=>P[x.id]=x.data().v);if(owner()&&!editD&&!$("#f_price").value){const lp=lastPrice($("#f_crop").value);if(lp!=null)$("#f_price").value=lp}renderAll()},()=>{});
 })();
 </script></body></html>

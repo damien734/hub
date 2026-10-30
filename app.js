@@ -182,8 +182,8 @@ async function renderHome() {
     <h2>Farm apps</h2><div class="tiles" id="tiles"></div>`;
   const builtIn = [
     { icon: "🌾", title: "Harvest Grain Tracker", desc: me.role === "admin" ? "Loads, contracts, payments and totals" : "Log loads into silos, bags and receival sites", href: "grain.html" },
-    { icon: "🧪", title: me.role === "admin" ? "Chemical Costs & Labels" : "Chemical Labels", desc: me.role === "admin" ? "Chemical spend, invoices and label facts" : "Label facts, rates and withholding periods", href: "chemicals.html" },
     { icon: "🔧", title: "Gunnadoo Workshop", desc: me.role === "admin" ? "Machinery, services, parts, oils and costs" : "Machinery, service schedules, parts and manuals", href: "workshop.html" },
+    { icon: "🧪", title: me.role === "admin" ? "Chemical Costs & Labels" : "Chemical Labels", desc: me.role === "admin" ? "Chemical spend, invoices and label facts" : "Label facts, rates and withholding periods", href: "chemicals.html" },
     { icon: "🗺️", title: "Paddock maps", desc: "Paddock boundaries and crop types", href: "#/maps", soon: true },
   ];
   if (isAdmin()) builtIn.push({ icon: "⚙️", title: "Admin", desc: "People, logins and homepage links", href: "#/admin" });

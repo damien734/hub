@@ -207,7 +207,7 @@ a.btnlink:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 <input type="file" id="fileIn" accept="image/*" multiple hidden>
 
 <script type="module">
-import {requireMember,makeDb,downloads as dlHelper} from "./core.js";
+import {requireMember,makeDb,downloads as dlHelper,getScanner} from "./core.js";
 (async () => {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -484,7 +484,7 @@ function openScan(){
       <button class="primary" id="pick">Choose photos</button>
       <div class="thumbs" id="thumbs"></div>
     </div>
-    <div class="muted" style="font-size:.85rem">The photos are sent to Claude to read. You check every line before anything is saved.</div>
+    <div class="muted" style="font-size:.85rem">The photos are sent to Google Gemini to read. You check every line before anything is saved.</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="primary" id="read" disabled>Read invoice</button><span id="readMsg" class="muted"></span></div>`);
   const fin=$("#fileIn"); if(imgLimits?.mediaTypes?.length) fin.accept=imgLimits.mediaTypes.join(",");
   sh.querySelector("#pick").onclick=()=>{ fin.value=""; fin.click(); };
@@ -534,7 +534,9 @@ async function readInvoice(){
   const btn=$("#read"), msg=$("#readMsg"); btn.disabled=true;
   msg.innerHTML=`<span class="spin"></span> Reading the invoice — this can take up to a minute…`;
   try{
-    const out=await sample.json(buildPrompt(),{images:scanFiles,modelTier:"complex",cache:false});
+    const shrink=async f=>{ try{ const bm=await createImageBitmap(f),k=Math.min(1,2000/Math.max(bm.width,bm.height)); if(k===1&&f.size<3e6) return f; const c=document.createElement("canvas"); c.width=Math.round(bm.width*k); c.height=Math.round(bm.height*k); c.getContext("2d").drawImage(bm,0,0,c.width,c.height); return await new Promise(r=>c.toBlob(r,"image/jpeg",.85)); }catch(e){ return f; } };
+    const imgs=await Promise.all(scanFiles.map(shrink));
+    const out=await sample.json(buildPrompt(),{images:imgs});
     const warnings=Array.isArray(out.warnings)?out.warnings.map(String):[];
     const lines=(out.lines||[]).map(x=>{
       const matched=x.matchProductId&&products.has(x.matchProductId)?x.matchProductId:null;
@@ -554,7 +556,7 @@ async function readInvoice(){
     openEntry({mode:"invoice",header:{date,supplier:String(out.supplier||""),invoiceNo:String(out.invoiceNo||"")},lines,warnings});
   }catch(e){
     btn.disabled=false;
-    const m={rate_limited:"Claude is busy right now. Wait a minute and try again.",not_granted:"Reading invoices needs permission to use Claude. You can still add purchases by hand.",image_rejected:"One of the photos couldn't be used. Try a JPEG or PNG under the size limit.",images_unavailable:"This view can't send photos to Claude. Open the tracker in the Claude app or claude.ai."};
+    const m={rate_limited:"The free scanning limit has been hit. Wait a few minutes and try again.",not_granted:"The scanner was refused by Firebase security (App Check). Tell Claude this happened. You can still add purchases by hand.",image_rejected:"One of the photos couldn't be used. Try a JPEG or PNG under the size limit.",images_unavailable:"Photo reading isn't available right now."};
     msg.style.color="var(--bad)"; msg.textContent=m[e.code]||("Couldn't read the invoice: "+(e.message||e.code||"unknown error"));
   }
 }
@@ -628,6 +630,7 @@ function renderLabels(){
   if(isAdm){
     db.collection("purchases").onSnapshot(s=>{ purchases=s.docs.map(d=>({id:d.id,...d.data()})); gotPu=true; render(); renderLabels(); }, e=>banner("Lost the connection to purchases. Reload the page.","bad"));
     downloads=dlHelper; $("#btnExport").hidden=false;
+    getScanner().then(async sc=>{ if(!sc) return; sample=sc; imgLimits=(await sc.limits()).images; $("#btnScan").hidden=false; });
     try{ if(localStorage.getItem("chemtab")==="labels") showTab("labels"); }catch(e){}
   } else {
     gotPu=true; $("#tabCosts").hidden=true; $("#btnManual").hidden=true;

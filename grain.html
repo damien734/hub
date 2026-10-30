@@ -152,7 +152,7 @@ body.staff .own{display:none!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads} from "./core.js";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -372,6 +372,7 @@ setCrop("Wheat");setSS(L.stores[0],"");mode();
   db=makeDb("grain_");dl=downloads;
   if(!$("#f_name").value)$("#f_name").value=me.name||"";
   mode();
+  if(canWrite){getScanner().then(sc=>{if(sc){sample=sc;$("#scanBtn").classList.remove("hide")}})}
   if(!canWrite)status("You have view-only access. Ask Damo or Carissa to change you to Staff to add loads.",true);
   const er=e=>status("Could not load data ("+(e.code||"error")+").",true);
   db.collection("deliveries").onSnapshot(s=>{D=s.docs.map(x=>({id:x.id,...x.data()}));

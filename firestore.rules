@@ -17,6 +17,7 @@ service cloud.firestore {
     function isAdmin()    { return isOwner() || (hasProfile() && role() == 'admin'); }
     function isMember()   { return isOwner() || hasProfile(); }
     function canWork()    { return isAdmin() || (hasProfile() && role() == 'staff'); }
+    function isHistoryEditor() { return signedIn() && myEmail() == 'damschneider@hotmail.com'; }
     function invitePath() { return /databases/$(database)/documents/invites/$(myEmail()); }
 
     // Who is allowed to join, and with what role. Admins manage these.
@@ -99,10 +100,13 @@ service cloud.firestore {
       allow create, update: if canWork();
       allow delete: if isAdmin();
     }
+    // History: staff log jobs and can tick "Mark fixed"; only Damo can edit or delete entries.
     match /workshop_logs/{id} {
       allow read: if isMember();
-      allow create, update: if canWork();
-      allow delete: if isAdmin();
+      allow create: if canWork();
+      allow update: if isHistoryEditor()
+        || (canWork() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolved', 'resolvedDate']));
+      allow delete: if isHistoryEditor();
     }
     // Farm oils and photos: everyone reads, admin changes.
     match /workshop_oils/{id} {

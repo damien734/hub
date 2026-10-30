@@ -185,6 +185,7 @@ body.noprice .pc{display:none!important}
 
 <script type="module">
 import {requireMember,makeDb,getScanner} from "./core.js";
+const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
 const photoSrc=id=>id?(S.photos[id]||""):"";
@@ -407,7 +408,7 @@ function renderTab(m){
       ${l.details?`<div class="det">${esc(l.details)}</div>`:""}
       ${l.parts?`<div class="det"><span class="note">Parts:</span> ${esc(l.parts)}</div>`:""}
       <div class="by">${l.doneBy?"Done by "+esc(l.doneBy):""}${l.byName?` · logged by ${esc(l.byName)}`:""}
-        ${l.type==="issue"&&!l.resolved&&S.canWrite?` <button class="btn small" data-resolve="${esc(l.id)}">Mark fixed</button>`:""}</div>
+        ${l.type==="issue"&&!l.resolved&&S.canWrite?` <button class="btn small" data-resolve="${esc(l.id)}">Mark fixed</button>`:""}${S.isDamo?` <button class="btn small" data-editlog="${esc(l.id)}">Edit</button>`:""}</div>
       </div>`).join("")}</div>`:`<div class="empty">No jobs logged yet.</div>`;
   } else if(S.tab==="parts"){
     const svc=(m.fluids||[]).filter(f=>f.per!=="L"&&(f.filter||f.system)),extra=m.partsList||[];
@@ -440,6 +441,7 @@ $("#detail").addEventListener("click",async e=>{
     try{await S.db.doc("machines/"+mm.id).update({partsList:list});toast("Part removed")}catch(err){pd.disabled=false;writeFail(err)}return}
   const a=e.target.closest("[data-act]");const m=S.machines.find(x=>x.id===S.sel);
   if(a&&m){if(a.dataset.act==="edit")openEditor(m);else openLog(m,a.dataset.act==="issue"?"issue":"service");return}
+  const el=e.target.closest("[data-editlog]");if(el&&S.isDamo){const l=S.logs.find(x=>x.id===el.dataset.editlog),mm2=S.machines.find(x=>x.id===S.sel);if(l&&mm2)editLog(mm2,l);return}
   const r=e.target.closest("[data-resolve]");
   if(r){r.disabled=true;try{await S.db.doc("logs/"+r.dataset.resolve).update({resolved:true,resolvedDate:today()});toast("Marked fixed")}catch(err){r.disabled=false;writeFail(err)}}
 });
@@ -508,6 +510,41 @@ function openLog(m,type){
       closeSheet();toast(ty==="issue"?"Problem reported":"Job logged");
     }catch(err){btn.disabled=false;const el=s.querySelector("#lf-err");el.hidden=false;el.textContent="Couldn't save this entry. Check your connection and try again.";if(err&&err.code==="invalid_argument")writeFail(err)}
   });
+}
+
+/* ---------- edit / delete a history entry (Damo only) ---------- */
+function editLog(m,l){
+  const s=sheet(`<h2>Edit history entry</h2><div class="note">${esc(m.name)}</div>
+  <form id="elForm" class="rowed" style="gap:10px">
+    <div class="grid2">
+      <label>Type<select id="el-type">${[["service","Service"],["repair","Repair"],["issue","Problem / needs attention"],["note","Note"]].map(([v,t])=>`<option value="${v}"${l.type===v?" selected":""}>${t}</option>`).join("")}</select></label>
+      <label>Date<input id="el-date" type="date" value="${esc(normD(l.date))}" required></label>
+      <label>${m2(m)?"Engine hours":m.unit==="km"?"Odometer (km)":"Hour meter (hrs)"}<input id="el-reading" type="number" inputmode="decimal" step="any" value="${esc(l.reading??"")}"></label>
+      ${m2(m)?`<label>${esc(m2(m))} hours<input id="el-reading2" type="number" inputmode="decimal" step="any" value="${esc(l.reading2??"")}"></label>`:""}
+      <label>Done by<input id="el-by" type="text" value="${esc(l.doneBy||"")}"></label>
+    </div>
+    <label>What was done / what's wrong<input id="el-title" type="text" required value="${esc(l.title||"")}"></label>
+    <label>Details<textarea id="el-det" rows="3">${esc(l.details||"")}</textarea></label>
+    <label>Parts & oils used<input id="el-parts" type="text" value="${esc(l.parts||"")}"></label>
+    ${l.type==="issue"?`<div class="checks"><label><input type="checkbox" id="el-res"${l.resolved?" checked":""}> Fixed</label></div>`:""}
+    <div class="note">Changing an entry here doesn't change the machine's current hours or service due dates. Use Edit details on the machine for those.</div>
+    <div id="el-err" class="err" hidden></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
+      <button type="button" class="btn" id="el-del">Delete entry</button>
+      <div style="display:flex;gap:8px"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" id="el-save">Save</button></div>
+    </div>
+  </form>`);
+  const fail=()=>{const x=s.querySelector("#el-err");x.hidden=false;x.textContent="Couldn't save. Check the latest security rules are published in Firebase, then try again."};
+  let armed=false;
+  s.querySelector("#el-del").addEventListener("click",async e=>{const b=e.currentTarget;if(!armed){armed=true;b.textContent="Tap again to delete";return}
+    b.disabled=true;try{await S.db.doc("logs/"+l.id).delete();closeSheet();toast("Entry deleted")}catch(err){b.disabled=false;fail()}});
+  s.querySelector("#elForm").addEventListener("submit",async e=>{e.preventDefault();const btn=s.querySelector("#el-save");btn.disabled=true;
+    const g=id=>s.querySelector("#el-"+id),ty=g("type").value,res=g("res");
+    const patch={type:ty,date:g("date").value,reading:num(g("reading").value),title:g("title").value.trim(),details:g("det").value.trim(),
+      parts:g("parts").value.trim(),doneBy:g("by").value.trim(),editedBy:S.me?.name||"",editedAt:Date.now()};
+    if(g("reading2"))patch.reading2=num(g("reading2").value);
+    if(ty==="issue"){const fixed=res?res.checked:!!l.resolved;patch.resolved=fixed;if(fixed&&!l.resolvedDate)patch.resolvedDate=today()}
+    try{await S.db.doc("logs/"+l.id).update(patch);closeSheet();toast("Entry updated")}catch(err){btn.disabled=false;fail()}});
 }
 
 /* ---------- edit machine (editors) ---------- */
@@ -673,7 +710,7 @@ async function scanLabels(s){
 /* ---------- boot ---------- */
 (async()=>{
   const me=await requireMember();
-  S.me=me;S.uid=me.uid;S.isAdmin=me.role==="admin";S.canEdit=S.isAdmin;S.canWrite=me.role!=="family";
+  S.me=me;S.uid=me.uid;S.isAdmin=me.role==="admin";S.canEdit=S.isAdmin;S.isDamo=String(me.email||"").toLowerCase()===HISTORY_EDITOR;S.canWrite=me.role!=="family";
   document.body.classList.toggle("noprice",!S.isAdmin);
   const db=makeDb("workshop_");S.db=db;S.assets=S.isAdmin?photoStore(db):null;
   db.collection("photos").onSnapshot(s=>{s.docs.forEach(d=>S.photos[d.id]=d.data().data);if(S.ready){renderList();renderDetail()}},()=>{});

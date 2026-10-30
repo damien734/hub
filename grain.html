@@ -100,6 +100,7 @@ body.staff .own{display:none!important}
  <div class="card">
   <span class="big" id="cTitle">Add contract</span>
   <div class="grid">
+   <label id="l_cngr" class="hide">NGR<select id="c_ngr"></select></label>
    <label>Contract / order no.<input id="c_no"></label>
    <label>Buyer<input id="c_buyer"></label>
    <label>Crop<select id="c_crop"></select></label>
@@ -138,7 +139,7 @@ body.staff .own{display:none!important}
 
 <section id="t-tot" class="hide">
  <div id="ngrTabs" class="seg hide"></div><div id="ngrNote" class="mut hide" style="margin:-4px 0 8px"></div>
- <div id="totals"></div><div id="padTot"></div>
+ <div id="totals"></div><div id="stockTot"></div><div id="padTot"></div>
  <div class="own">
   <div class="card">
    <span class="big">Storage lists</span>
@@ -229,10 +230,11 @@ const vis=id=>!$(id).classList.contains("hide");
 const ngrLbl=no=>{const n=NG.find(x=>x.no===no);return n?(n.name?`${n.name} (${n.no})`:n.no):(no||"")};
 function ngrOpts(sel,cur){const a=[...NG];if(cur&&!a.some(x=>x.no===cur))a.push({no:cur,name:""});
   sel.innerHTML=`<option value="">— select NGR —</option>`+a.map(x=>`<option value="${esc(x.no)}">${esc(ngrLbl(x.no))}</option>`).join("");sel.value=cur||""}
-function fillNgr(){const has=NG.length>0;$("#l_ngr").classList.toggle("hide",!has);$("#l_ongr").classList.toggle("hide",!has);
+function fillNgr(){const has=NG.length>0;$("#l_ngr").classList.toggle("hide",!has);$("#l_ongr").classList.add("hide");
   let last="";try{last=localStorage.getItem("gt_ngr")||""}catch(e){}
   const def=v=>v||(NG.some(x=>x.no===last)?last:(NG.length===1?NG[0].no:""));
   ngrOpts($("#f_ngr"),def($("#f_ngr").value));ngrOpts($("#o_ngr"),def($("#o_ngr").value));
+  $("#l_cngr").classList.toggle("hide",!has);ngrOpts($("#c_ngr"),$("#c_ngr").value);
   $("#ngrMgr").innerHTML=NG.length?NG.map(x=>`<span class="tag">${esc(ngrLbl(x.no))} <button class="x" style="padding:0 4px;min-height:24px" data-ngrx="${esc(x.no)}">×</button></span>`).join(""):`<span class="mut">No NGRs yet</span>`;
   const used=[...new Set(D.map(d=>d.ngr).filter(Boolean))],tabs=[...new Set([...NG.map(x=>x.no),...used])];
   if(totNgr&&!tabs.includes(totNgr)&&totNgr!=="__none")totNgr="";
@@ -248,7 +250,7 @@ $("#n_add").onclick=async()=>{const no=$("#n_no").value.replace(/\s+/g,"").trim(
   NG=[...NG,{no,name}];await saveNG();$("#n_no").value="";$("#n_name").value="";status("NGR added.")};
 $("#ngrMgr").onclick=async e=>{const b=e.target.closest("[data-ngrx]");if(!b)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="tap again";return}
   NG=NG.filter(x=>x.no!==b.dataset.ngrx);await saveNG()};
-$("#f_ngr").onchange=()=>{try{localStorage.setItem("gt_ngr",$("#f_ngr").value)}catch(e){}};
+$("#f_ngr").onchange=()=>{try{localStorage.setItem("gt_ngr",$("#f_ngr").value)}catch(e){}conOptions()};
 function readDel(){return{ngr:$("#f_ngr").value||null,date:$("#f_date").value,crop:$("#f_crop").value,store:$("#f_store").value,site:$("#f_site").value,docket:$("#f_docket").value.trim(),rego:$("#f_rego").value.trim().toUpperCase(),paddock:$("#f_paddock").value||null,t:num("#f_t"),
   prot:vis("#l_prot")?num("#f_prot"):null,scr:vis("#l_scr")?num("#f_scr"):null,grade:vis("#l_grade")?($("#f_grade").value||null):null,oil:vis("#l_oil")?num("#f_oil"):null,adm:vis("#l_adm")?num("#f_adm"):null,moist:vis("#l_moist")?num("#f_moist"):null,tw:vis("#l_tw")?num("#f_tw"):null,cid:$("#f_con").value||null}}
 function preview(){const d=readDel();let s="";
@@ -256,9 +258,9 @@ function preview(){const d=readDel();let s="";
   if(owner()&&d.t){const p=num("#f_price");if(p!=null){const a=adj(d.crop,d.oil,p);s+=(s?" · ":"")+`$${fmt(a)}/t${d.crop==="Canola"?" after oil":""} · Value ≈ ${money(a*cleanT(d))}`}}
   $("#preview").textContent=s}
 ["f_t","f_oil","f_adm","f_price"].forEach(i=>$("#"+i).oninput=preview);
-$("#f_con").onchange=()=>{const v=P["c_"+$("#f_con").value];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v;preview()};
-function conOptions(){const sel=$("#f_con"),cur=sel.value,crop=$("#f_crop").value;
-  sel.innerHTML=`<option value="">None / not contracted</option>`+C.filter(c=>c.crop===crop).map(c=>`<option value="${c.id}">${esc(c.no)} – ${esc(c.buyer)} (${fmt(c.qty-delivered(c),0)} t left)</option>`).join("");sel.value=cur}
+$("#f_con").onchange=()=>{{const c=C.find(x=>x.id===$("#f_con").value);if(c&&c.ngr&&$("#f_ngr").value!==c.ngr)ngrOpts($("#f_ngr"),c.ngr)}const v=P["c_"+$("#f_con").value];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v;preview()};
+function conOptions(){const sel=$("#f_con"),cur=sel.value,crop=$("#f_crop").value,ng=$("#f_ngr").value;
+  sel.innerHTML=`<option value="">None / not contracted</option>`+C.filter(c=>c.crop===crop&&(!c.ngr||!ng||c.ngr===ng)).map(c=>`<option value="${c.id}">${esc(c.no)} – ${esc(c.buyer)} (${fmt(c.qty-delivered(c),0)} t left)</option>`).join("");sel.value=cur}
 function fillFrom(d,full){setCrop(d.crop);setSS(d.store||L.stores[0],d.site||"");setGrade(full?d.grade:"");
   $("#f_prot").value=full?(d.prot??""):"";$("#f_scr").value=full?(d.scr??""):"";$("#f_oil").value=full?(d.oil??""):"";$("#f_adm").value=full?(d.adm??""):"";$("#f_moist").value=full?(d.moist??""):"";$("#f_tw").value=full?(d.tw??""):"";
   $("#f_con").value=d.cid||"";$("#f_price").value=owner()?((full?P["d_"+d.id]:(lastPrice(d.crop)??P["d_"+d.id]))??""):"";
@@ -272,6 +274,7 @@ $("#cancelDel").onclick=()=>{endEdit();$("#f_docket").value="";$("#f_t").value="
 $("#saveDel").onclick=async()=>{const d=readDel();
   if(!d.date||!d.t||d.t<=0){status("Enter the tonnes.",true);return}
   if(NG.length&&!d.ngr){status("Choose the NGR this load is delivered under.",true);return}
+  {const c=C.find(x=>x.id===d.cid);if(c&&c.ngr&&d.ngr&&c.ngr!==d.ngr){status(`Contract ${c.no} is under NGR ${ngrLbl(c.ngr)}, but this load is NGR ${ngrLbl(d.ngr)}. Change one of them.`,true);return}}
   if(!d.paddock){status("Choose the paddock this load came from.",true);return}
   {const pc=padCrop(d.paddock,d.date),wk=d.paddock+"|"+d.crop+"|"+yrOf(d.date);if(pc&&pc!==d.crop&&padWarn!==wk){padWarn=wk;status(`${d.paddock} is ${pc} this year, but this load is ${d.crop}. Tap Save again if that is right.`,true);return}}
   const nm=$("#f_name").value.trim();if(!nm){status("Your login has no name. Sign out and back in.",true);return}
@@ -304,10 +307,11 @@ $("#delList").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
     try{await db.doc("deliveries/"+b.dataset.x).delete();await db.doc("pricing/d_"+b.dataset.x).delete().catch(()=>{})}catch(er){status("Could not delete.",true)}}};
 
 /* contracts (owner) */
-function clearCon(){editC=null;["c_no","c_buyer","c_loc","c_qty","c_price","c_terms"].forEach(i=>$("#"+i).value="");$("#c_basis").value="days";$("#cTitle").textContent="Add contract";$("#cancelCon").classList.add("hide")}
+function clearCon(){editC=null;["c_no","c_buyer","c_loc","c_qty","c_price","c_terms","c_ngr"].forEach(i=>$("#"+i).value="");$("#c_basis").value="days";$("#cTitle").textContent="Add contract";$("#cancelCon").classList.add("hide")}
 $("#cancelCon").onclick=clearCon;
-$("#saveCon").onclick=async()=>{const c={no:$("#c_no").value.trim(),buyer:$("#c_buyer").value.trim(),crop:$("#c_crop").value,loc:$("#c_loc").value.trim(),qty:num("#c_qty"),terms:num("#c_terms"),basis:$("#c_basis").value};
+$("#saveCon").onclick=async()=>{const c={ngr:$("#c_ngr").value||null,no:$("#c_no").value.trim(),buyer:$("#c_buyer").value.trim(),crop:$("#c_crop").value,loc:$("#c_loc").value.trim(),qty:num("#c_qty"),terms:num("#c_terms"),basis:$("#c_basis").value};
   if(!c.no||!c.qty){status("Enter a contract number and tonnes.",true);return}
+  if(NG.length&&!c.ngr){status("Choose the NGR this contract is under.",true);return}
   if(!db){status("Saving is not available in this view.",true);return}
   try{let id=editC;if(id)await db.doc("contracts/"+id).set(c);else{const r=db.collection("contracts").doc();id=r.id;await r.set(c)}
    const p=num("#c_price"),pr=db.doc("pricing/c_"+id);if(p!=null)await pr.set({v:p});else await pr.delete().catch(()=>{});status("");clearCon()}
@@ -324,13 +328,13 @@ function renderCon(){
   $("#conList").innerHTML=C.length?C.map(c=>{const dv=delivered(c),r=c.qty-dv,pc=Math.min(100,dv/c.qty*100),p=P["c_"+c.id],unp=D.filter(d=>d.cid===c.id&&!d.paid),owing=unp.reduce((s,d)=>s+(valC(d,c)||0),0),pay=tdays(c)!=null?Object.entries(D.filter(d=>d.cid===c.id&&!d.paid).reduce((o,d)=>{(o[d.date]=o[d.date]||[]).push(d);return o},{})).sort():[];
    const od=pay.filter(([dt])=>dleft(dueOf(dt,tdays(c),c.basis==="eow"))<0),odAmt=od.reduce((s,[,a])=>s+a.reduce((t,d)=>t+(valC(d,c)||0),0),0);
    return `<div class="card cr-${c.crop.replace(/\s/g,"")}"><div class="it"><b>${esc(c.no)} · ${esc(c.crop)}</b><b>${fmt(c.qty,0)} t${p!=null?` @ $${fmt(p)}`:""}</b></div>
-   <div class="mut">${esc(c.buyer)}${c.loc?" · Deliver to "+esc(c.loc):""}${tdays(c)!=null?" · Payment: "+tlabel(c):(c.terms?" · Payment: "+esc(c.terms):"")}</div><div class="bar"><i style="width:${pc}%"></i></div>
+   <div class="mut">${c.ngr?"NGR "+esc(ngrLbl(c.ngr))+" · ":""}${esc(c.buyer)}${c.loc?" · Deliver to "+esc(c.loc):""}${tdays(c)!=null?" · Payment: "+tlabel(c):(c.terms?" · Payment: "+esc(c.terms):"")}</div><div class="bar"><i style="width:${pc}%"></i></div>
    ${od.length?`<div class="err" style="font-weight:800;margin-bottom:4px">⚠ OVERDUE ${money(odAmt)} · ${od.length} delivery date${od.length>1?"s":""} past due</div>`:""}<div>Delivered <b>${fmt(dv)}</b> t · Owing <b>${money(owing)}</b> · ${r>=0?`Remaining <b>${fmt(r)}</b> t`:`<span class="err">Over by ${fmt(-r)} t</span>`}</div>
    ${tdays(c)!=null?`<div style="margin-top:8px"><b>Payment clock · ${tlabel(c)}</b>${pay.length?pay.map(([dt,a])=>{const x=dueOf(dt,tdays(c),c.basis==="eow"),n=dleft(x),amt=a.reduce((s,d)=>s+(valC(d,c)||0),0);return `<div class="it" style="border-top:1px solid var(--bd);padding-top:4px"><span>${dfmt(new Date(dt+"T00:00:00"))} · ${fmt(a.reduce((s,d)=>s+cleanT(d),0))} t<br>Due <b class="${n<0?"err":""}">${dfmt(x)}</b> <span class="${n<0?"err":""}" style="font-weight:${n<0?800:400}">(${clock(x)})</span>${amt>0?` · ≈ ${money(amt)}`:""}</span><button class="x" data-paid="${a.map(d=>d.id).join(",")}">Mark paid</button></div>`}).join(""):`<div class="mut">No payments outstanding.</div>`}</div>`:""}
    <div class="row" style="margin-top:2px"><button class="x" data-e="${c.id}">Edit</button>${unp.length?`<button class="x" data-paid="${unp.map(d=>d.id).join(",")}">Mark all paid</button>`:""}<button class="x" data-x="${c.id}">Delete</button></div></div>`}).join(""):`<p class="mut">No contracts yet.</p>`}
 $("#conList").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.paid){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again: paid";return}for(const id of b.dataset.paid.split(","))await db.doc("deliveries/"+id).update({paid:true}).catch(()=>status("Could not mark paid.",true));return}
-  if(b.dataset.e){const c=C.find(x=>x.id===b.dataset.e);editC=c.id;$("#c_no").value=c.no;$("#c_buyer").value=c.buyer||"";$("#c_crop").value=c.crop;$("#c_loc").value=c.loc||"";$("#c_qty").value=c.qty;$("#c_terms").value=tdays(c)??"";$("#c_basis").value=c.basis||"days";$("#c_price").value=P["c_"+c.id]??"";$("#cTitle").textContent="Edit contract";$("#cancelCon").classList.remove("hide");scrollTo(0,0)}
+  if(b.dataset.e){const c=C.find(x=>x.id===b.dataset.e);editC=c.id;ngrOpts($("#c_ngr"),c.ngr||"");$("#c_no").value=c.no;$("#c_buyer").value=c.buyer||"";$("#c_crop").value=c.crop;$("#c_loc").value=c.loc||"";$("#c_qty").value=c.qty;$("#c_terms").value=tdays(c)??"";$("#c_basis").value=c.basis||"days";$("#c_price").value=P["c_"+c.id]??"";$("#cTitle").textContent="Edit contract";$("#cancelCon").classList.remove("hide");scrollTo(0,0)}
   if(b.dataset.x){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}
     try{await db.doc("contracts/"+b.dataset.x).delete();await db.doc("pricing/c_"+b.dataset.x).delete().catch(()=>{})}catch(er){status("Could not delete.",true)}}};
 
@@ -355,18 +359,24 @@ $("#csv").onclick=async()=>{if(!dl){status("Download is not available in this vi
   try{await dl.save({filename:"grain-deliveries.csv",data:[h.join(","),...rows].join("\n")})}catch(e){}};
 /* out loads: grain taken from own silos / bags */
 const onFarm=d=>!/receival/i.test(d.store||"");
-const skey=d=>[d.store,d.site||"",d.crop].join("|");
-function stock(){const m={},g=d=>m[skey(d)]=m[skey(d)]||{store:d.store,site:d.site||"",crop:d.crop,inn:0,out:0};
+const skey=d=>[d.ngr||"",d.store,d.site||"",d.crop].join("|");
+function stock(){const m={},g=d=>m[skey(d)]=m[skey(d)]||{ngr:d.ngr||"",store:d.store,site:d.site||"",crop:d.crop,inn:0,out:0};
   D.filter(onFarm).forEach(d=>g(d).inn+=d.t);O.forEach(o=>g(o).out+=o.t);
-  return Object.entries(m).map(([k,v])=>({k,...v,left:v.inn-v.out})).sort((a,b)=>(a.store+a.site+a.crop).localeCompare(b.store+b.site+b.crop))}
+  return Object.entries(m).map(([k,v])=>({k,...v,left:v.inn-v.out})).sort((a,b)=>(a.ngr+"|"+a.store+a.site+a.crop).localeCompare(b.ngr+"|"+b.store+b.site+b.crop))}
 const sname=s=>esc(s.store)+(s.site?" – "+esc(s.site):"");
+function stockCard(rows,title){if(!rows.length)return `<p class="mut">Nothing stored on farm${title?" for this NGR":""} yet.</p>`;
+  const sum=(a,f)=>fmt(a.reduce((x,s)=>x+f(s),0)),line=s=>`<tr><td>${sname(s)}</td><td>${esc(s.crop)}</td><td class="tn">${fmt(s.inn)}</td><td class="tn">${fmt(s.out)}</td><td class="tn"><b>${fmt(Math.max(s.left,0))}</b></td></tr>`;
+  const tot=(a,l)=>`<tr><th colspan="2">${l}</th><th class="tn">${sum(a,s=>s.inn)}</th><th class="tn">${sum(a,s=>s.out)}</th><th class="tn">${sum(a,s=>Math.max(s.left,0))}</th></tr>`;
+  const groups=[...new Set(rows.map(s=>s.ngr))],split=NG.length&&(groups.length>1||groups[0]);
+  const body=split?groups.map(n=>{const a=rows.filter(s=>s.ngr===n);return `<tr><th colspan="5" style="text-align:left">${n?"NGR "+esc(ngrLbl(n)):"No NGR"}</th></tr>`+a.map(line).join("")+(groups.length>1?tot(a,"Subtotal"):"")}).join(""):rows.map(line).join("");
+  return `<div class="card"><span class="big">${title||"Stored on farm"}</span><div class="wrap"><table><tr><th>Silo / bag</th><th>Crop</th><th>In</th><th>Out</th><th>Left</th></tr>`+body+tot(rows,"All")+`</table></div><p class="mut">Tonnes in are the loads stored in own silos and grain bags${split?", kept separate for each NGR":""}. Canola is counted as loaded; admixture is only worked out once it is at the receival site. Left = in minus out.</p></div>`}
 function renderOut(){const st=stock(),has=st.filter(s=>s.left>0.005),cur=$("#o_src").value;
-  $("#o_src").innerHTML=`<option value="">— select silo / bag —</option>`+has.map(s=>`<option value="${esc(s.k)}">${sname(s)} · ${esc(s.crop)} · ${fmt(s.left)} t left</option>`).join("");
+  $("#o_src").innerHTML=`<option value="">— select silo / bag —</option>`+has.map(s=>`<option value="${esc(s.k)}">${sname(s)} · ${esc(s.crop)}${s.ngr?" · NGR "+esc(ngrLbl(s.ngr)):""} · ${fmt(s.left)} t left</option>`).join("");
   $("#o_src").value=has.some(s=>s.k===cur)?cur:"";
   const dc=$("#o_dest").value,ds=[...new Set(L.stores.filter(x=>/receival/i.test(x)).flatMap(x=>L.sites[x]||[]))];
   $("#o_dest").innerHTML=`<option value="">— select receival site —</option>`+ds.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");$("#o_dest").value=ds.includes(dc)?dc:"";
   const rows=st.filter(s=>s.inn>0);
-  $("#o_stock").innerHTML=rows.length?`<div class="card"><span class="big">Stored on farm</span><div class="wrap"><table><tr><th>Silo / bag</th><th>Crop</th><th>In</th><th>Out</th><th>Left</th></tr>`+rows.map(s=>`<tr><td>${sname(s)}</td><td>${esc(s.crop)}</td><td class="tn">${fmt(s.inn)}</td><td class="tn">${fmt(s.out)}</td><td class="tn"><b>${fmt(Math.max(s.left,0))}</b></td></tr>`).join("")+`<tr><th colspan="2">All</th><th class="tn">${fmt(rows.reduce((a,s)=>a+s.inn,0))}</th><th class="tn">${fmt(rows.reduce((a,s)=>a+s.out,0))}</th><th class="tn">${fmt(rows.reduce((a,s)=>a+Math.max(s.left,0),0))}</th></tr></table></div><p class="mut">Tonnes in are the loads stored in own silos and grain bags. Canola is counted as loaded; admixture is only worked out once it is at the receival site. Left = in minus out.</p></div>`:`<p class="mut">Nothing stored on farm yet. Add a load stored in an own silo or grain bag.</p>`;
+  $("#o_stock").innerHTML=stockCard(rows);
   const r=[...O].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).slice(0,40);
   $("#o_list").innerHTML=r.length?`<span class="big">Recent out loads</span>`+r.map(o=>`<div class="card cr-${esc(String(o.crop).replace(/\s/g,""))}"><div class="it"><b>${esc(o.date)} · ${esc(o.crop)}</b><b>${fmt(o.t)} t</b></div><div class="mut">From ${sname(o)}${o.dest?" → "+esc(o.dest):""}${o.docket?" · Docket "+esc(o.docket):""}${o.rego?" · Rego "+esc(o.rego):""}${o.ngr?" · NGR "+esc(ngrLbl(o.ngr)):""}</div>${o.byName?`<div class="mut">Entered by ${esc(o.byName)}</div>`:""}${owner()?`<div class="row" style="margin-top:2px"><button class="x" data-ox="${o.id}">Delete</button></div>`:""}</div>`).join(""):"";
   outPrev()}
@@ -378,14 +388,16 @@ $("#o_save").onclick=async()=>{const s=stock().find(x=>x.k===$("#o_src").value),
   if(!t||t<=0||!date){status("Enter the tonnes and date.",true);return}
   if(t>s.left+0.005){status(`Only ${fmt(s.left)} t left in ${s.site||s.store}.`,true);return}
   if(!db){status("Saving is not available in this view.",true);return}
-  const ongr=$("#o_ngr").value||null;if(NG.length&&!ongr){status("Choose the NGR for this out load.",true);return}
+  const ongr=s.ngr||null;
   try{await db.collection("outloads").doc().set({ngr:ongr,date,crop:s.crop,store:s.store,site:s.site,t,dest:$("#o_dest").value.trim()||null,docket:$("#o_docket").value.trim(),rego:$("#o_rego").value.trim().toUpperCase(),ts:Date.now(),by:myId,byName:nm});
    $("#o_toast").textContent=`Saved ✓ ${fmt(t)} t ${s.crop} out of ${s.site||s.store}`;status("");$("#o_t").value="";$("#o_docket").value="";outPrev()}
   catch(e){status("Could not save ("+(e.code||"error")+"). Family logins are view only.",true)}};
 $("#o_list").onclick=async e=>{const b=e.target.closest("button");if(!b||!b.dataset.ox)return;
   if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}
   try{await db.doc("outloads/"+b.dataset.ox).delete()}catch(er){status("Could not delete.",true)}};
-function renderPad(){const m={},D=totRows();D.forEach(d=>{const k=d.paddock||"No paddock",x=m[k]=m[k]||{n:0,c:{}};x.n++;x.c[d.crop]=(x.c[d.crop]||0)+cleanT(d)});
+function renderStockTot(){const st=stock().filter(s=>s.inn>0&&(totNgr==="__none"?!s.ngr:!totNgr||s.ngr===totNgr));
+  $("#stockTot").innerHTML=st.length?stockCard(st,totNgr?`Stored on farm · ${totNgr==="__none"?"No NGR":"NGR "+esc(ngrLbl(totNgr))}`:"Stored on farm"):""}
+function renderPad(){renderStockTot();const m={},D=totRows();D.forEach(d=>{const k=d.paddock||"No paddock",x=m[k]=m[k]||{n:0,c:{}};x.n++;x.c[d.crop]=(x.c[d.crop]||0)+cleanT(d)});
   const rows=Object.entries(m).sort((a,b)=>(a[0]==="No paddock")-(b[0]==="No paddock")||a[0].localeCompare(b[0]));
   setPad(curPad);
   $("#padTot").innerHTML=rows.length?`<div class="card"><span class="big">By paddock</span><div class="wrap"><table><tr><th>Paddock</th><th>Loads</th><th>Tonnes</th></tr>`+rows.map(([k,x])=>`<tr><td>${esc(k)}<div class="mut">${Object.entries(x.c).map(([c,v])=>`${esc(c)} ${fmt(v)} t`).join(" · ")}</div></td><td>${x.n}</td><td class="tn">${fmt(Object.values(x.c).reduce((a,v)=>a+v,0))}</td></tr>`).join("")+`</table></div><p class="mut">Harvested tonnes by paddock (canola after admixture). Loads with no paddock entered are grouped separately.</p></div>`:""}
@@ -402,7 +414,7 @@ $("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$
    if(r.date)$("#f_date").value=r.date;if(CROPS.includes(r.crop))setCrop(r.crop);if(r.grade&&(L.grades[$("#f_crop").value]||[]).includes(r.grade))setGrade(r.grade);
    if(r.docket)$("#f_docket").value=r.docket;if(r.rego)$("#f_rego").value=String(r.rego).toUpperCase();if(r.net_tonnes!=null)$("#f_t").value=r.net_tonnes;
    if(r.protein!=null)$("#f_prot").value=r.protein;if(r.screenings!=null)$("#f_scr").value=r.screenings;if(r.oil!=null)$("#f_oil").value=r.oil;if(r.admixture!=null)$("#f_adm").value=r.admixture;if(r.moisture!=null)$("#f_moist").value=r.moisture;if(r.test_weight!=null)$("#f_tw").value=r.test_weight;
-   let cmsg="";if(r.contract_no){const nn=v=>String(v).toLowerCase().replace(/[^a-z0-9]/g,""),c=C.find(x=>nn(x.no)===nn(r.contract_no));if(!c)cmsg=` Contract / order no. on docket: ${r.contract_no} (not in your contracts).`;if(c){if(c.crop!==$("#f_crop").value)setCrop(c.crop);$("#f_con").value=c.id;cmsg=` Contract / order no. ${c.no} selected.`;const v=P["c_"+c.id];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v}}
+   let cmsg="";if(r.contract_no){const nn=v=>String(v).toLowerCase().replace(/[^a-z0-9]/g,""),c=C.find(x=>nn(x.no)===nn(r.contract_no));if(!c)cmsg=` Contract / order no. on docket: ${r.contract_no} (not in your contracts).`;if(c){if(c.crop!==$("#f_crop").value)setCrop(c.crop);if(c.ngr)ngrOpts($("#f_ngr"),c.ngr);conOptions();$("#f_con").value=c.id;cmsg=` Contract / order no. ${c.no} selected.`;const v=P["c_"+c.id];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v}}
    preview();m.textContent="Docket read. Please check every field against the paper docket before saving."+(r.grade?` Grade on docket: ${r.grade}.`:"")+cmsg+(r.moisture!=null&&!vis("#l_moist")?` Moisture: ${r.moisture}%.`:"")+(r.site?` Site on docket: ${r.site}.`:"")}
   catch(er){m.className="msg err";m.textContent="Could not read that docket ("+(er.code||"error")+"). You can enter it by hand."}
   e.target.value=""};

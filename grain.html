@@ -139,7 +139,7 @@ body.staff .own{display:none!important}
 
 <section id="t-tot" class="hide">
  <div id="ngrTabs" class="seg hide"></div><div id="ngrNote" class="mut hide" style="margin:-4px 0 8px"></div>
- <div id="totals"></div><div id="stockTot"></div><div id="padTot"></div>
+ <div id="moneyTot" class="own"></div><div id="totals"></div><div id="stockTot"></div><div id="padTot"></div>
  <div class="own">
   <div class="card">
    <span class="big">Storage lists</span>
@@ -148,9 +148,9 @@ body.staff .own{display:none!important}
   </div>
   <div class="card">
    <span class="big">NGR numbers</span>
-   <p class="mut">Add each National Grower Register number you deliver under. Once there is at least one, every load must have an NGR picked, and Totals can be shown per NGR. Only admins can add or remove these.</p>
+   <p class="mut">Add each National Grower Register number you deliver under. Once there is at least one, every load must have an NGR picked, and Totals can be shown per NGR. Only admins can add or remove these. The share % is the part of each NGR's grain money that is ours; it is only ever shown to admins.</p>
    <div id="ngrMgr"></div>
-   <div class="grid"><label>NGR number<input id="n_no" inputmode="numeric" autocomplete="off"></label><label>Name (e.g. Gunnadoo Grain, Family Trust)<input id="n_name"></label></div>
+   <div class="grid"><label>NGR number<input id="n_no" inputmode="numeric" autocomplete="off"></label><label>Name (e.g. Gunnadoo Grain, Family Trust)<input id="n_name"></label><label>Our share of the money %<input id="n_share" type="number" step="0.1" min="0" max="100" inputmode="decimal" placeholder="100"></label></div>
    <div class="row"><button class="s" id="n_add">Add NGR</button></div>
   </div>
   <div class="card">
@@ -235,20 +235,27 @@ function fillNgr(){const has=NG.length>0;$("#l_ngr").classList.toggle("hide",!ha
   const def=v=>v||(NG.some(x=>x.no===last)?last:(NG.length===1?NG[0].no:""));
   ngrOpts($("#f_ngr"),def($("#f_ngr").value));ngrOpts($("#o_ngr"),def($("#o_ngr").value));
   $("#l_cngr").classList.toggle("hide",!has);ngrOpts($("#c_ngr"),$("#c_ngr").value);
-  $("#ngrMgr").innerHTML=NG.length?NG.map(x=>`<span class="tag">${esc(ngrLbl(x.no))} <button class="x" style="padding:0 4px;min-height:24px" data-ngrx="${esc(x.no)}">×</button></span>`).join(""):`<span class="mut">No NGRs yet</span>`;
+  $("#ngrMgr").innerHTML=NG.length?NG.map(x=>`<div class="it" style="border-bottom:1px solid var(--bd);padding:4px 0"><b>${esc(ngrLbl(x.no))}</b><span class="row" style="margin:0;align-items:center"><label style="display:flex;align-items:center;gap:6px">Our share<input type="number" step="0.1" min="0" max="100" inputmode="decimal" style="width:90px;min-height:40px" data-share="${esc(x.no)}" value="${esc(shareOf(x.no))}">%</label><button class="x" data-sharesave="${esc(x.no)}">Save</button><button class="x" data-ngrx="${esc(x.no)}">Remove</button></span></div>`).join(""):`<span class="mut">No NGRs yet</span>`;
   const used=[...new Set(D.map(d=>d.ngr).filter(Boolean))],tabs=[...new Set([...NG.map(x=>x.no),...used])];
   if(totNgr&&!tabs.includes(totNgr)&&totNgr!=="__none")totNgr="";
   const none=D.some(d=>!d.ngr)&&tabs.length;
   $("#ngrTabs").classList.toggle("hide",!tabs.length);
   $("#ngrTabs").innerHTML=tabs.length?[["","All NGRs"],...tabs.map(n=>[n,ngrLbl(n)]),...(none?[["__none","No NGR"]]:[])].map(([v,l])=>`<button data-ngrtab="${esc(v)}" class="${totNgr===v?"on":""}">${esc(l)}</button>`).join(""):"";
   $("#ngrNote").classList.toggle("hide",!totNgr);$("#ngrNote").textContent=totNgr?`Showing totals for ${totNgr==="__none"?"loads with no NGR":"NGR "+ngrLbl(totNgr)} only.`:""}
+const shareOf=no=>{const v=no?P["ngr_"+no]:null;return v==null||!isFinite(v)?100:Number(v)};
+const ours=(amt,no)=>amt*shareOf(no)/100;
+const pct=v=>fmt(v,v%1?1:0)+"%";
 const totRows=()=>totNgr==="__none"?D.filter(d=>!d.ngr):totNgr?D.filter(d=>d.ngr===totNgr):D;
 $("#ngrTabs").onclick=e=>{const b=e.target.closest("[data-ngrtab]");if(!b)return;totNgr=b.dataset.ngrtab;fillNgr();renderTot();renderPad()};
 const saveNG=async()=>{try{await db.doc("settings/ngrs").set({list:NG})}catch(e){status("Could not save NGRs ("+(e.code||"error")+").",true)}};
 $("#n_add").onclick=async()=>{const no=$("#n_no").value.replace(/\s+/g,"").trim(),name=$("#n_name").value.trim();if(!no){status("Enter the NGR number.",true);return}
   if(NG.some(x=>x.no===no)){status("That NGR is already on the list.",true);return}
-  NG=[...NG,{no,name}];await saveNG();$("#n_no").value="";$("#n_name").value="";status("NGR added.")};
-$("#ngrMgr").onclick=async e=>{const b=e.target.closest("[data-ngrx]");if(!b)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="tap again";return}
+  const sh=$("#n_share").value===""?100:Number($("#n_share").value);if(!isFinite(sh)||sh<0||sh>100){status("Share must be between 0 and 100%.",true);return}
+  NG=[...NG,{no,name}];await saveNG();await saveShare(no,sh);$("#n_no").value="";$("#n_name").value="";$("#n_share").value="";status("NGR added.")};
+const saveShare=async(no,v)=>{v=Number(v);if(!isFinite(v)||v<0||v>100){status("Share must be between 0 and 100%.",true);return false}
+  try{await db.doc("pricing/ngr_"+no).set({v});P["ngr_"+no]=v;status(`Share for ${ngrLbl(no)} saved: ${pct(v)}.`);renderAll();return true}catch(e){status("Could not save the share ("+(e.code||"error")+").",true);return false}};
+$("#ngrMgr").onclick=async e=>{const sv=e.target.closest("[data-sharesave]");if(sv){const i=$(`[data-share="${CSS.escape(sv.dataset.sharesave)}"]`);await saveShare(sv.dataset.sharesave,i.value);return}
+  const b=e.target.closest("[data-ngrx]");if(!b)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="tap again";return}
   NG=NG.filter(x=>x.no!==b.dataset.ngrx);await saveNG()};
 $("#f_ngr").onchange=()=>{try{localStorage.setItem("gt_ngr",$("#f_ngr").value)}catch(e){}conOptions()};
 function readDel(){return{ngr:$("#f_ngr").value||null,date:$("#f_date").value,crop:$("#f_crop").value,store:$("#f_store").value,site:$("#f_site").value,docket:$("#f_docket").value.trim(),rego:$("#f_rego").value.trim().toUpperCase(),paddock:$("#f_paddock").value||null,t:num("#f_t"),
@@ -325,12 +332,12 @@ const dfmt=x=>x.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"nu
 const clock=x=>{const n=dleft(x);return n>0?`due in ${n} day${n>1?"s":""}`:n===0?"due today":`${-n} day${n<-1?"s":""} overdue`};
 function renderCon(){
   if(!owner()){$("#conList").innerHTML="";return}
-  $("#conList").innerHTML=C.length?C.map(c=>{const dv=delivered(c),r=c.qty-dv,pc=Math.min(100,dv/c.qty*100),p=P["c_"+c.id],unp=D.filter(d=>d.cid===c.id&&!d.paid),owing=unp.reduce((s,d)=>s+(valC(d,c)||0),0),pay=tdays(c)!=null?Object.entries(D.filter(d=>d.cid===c.id&&!d.paid).reduce((o,d)=>{(o[d.date]=o[d.date]||[]).push(d);return o},{})).sort():[];
+  $("#conList").innerHTML=C.length?C.map(c=>{const sh=shareOf(c.ngr),dv=delivered(c),r=c.qty-dv,pc=Math.min(100,dv/c.qty*100),p=P["c_"+c.id],unp=D.filter(d=>d.cid===c.id&&!d.paid),owing=unp.reduce((s,d)=>s+(valC(d,c)||0),0),pay=tdays(c)!=null?Object.entries(D.filter(d=>d.cid===c.id&&!d.paid).reduce((o,d)=>{(o[d.date]=o[d.date]||[]).push(d);return o},{})).sort():[];
    const od=pay.filter(([dt])=>dleft(dueOf(dt,tdays(c),c.basis==="eow"))<0),odAmt=od.reduce((s,[,a])=>s+a.reduce((t,d)=>t+(valC(d,c)||0),0),0);
    return `<div class="card cr-${c.crop.replace(/\s/g,"")}"><div class="it"><b>${esc(c.no)} · ${esc(c.crop)}</b><b>${fmt(c.qty,0)} t${p!=null?` @ $${fmt(p)}`:""}</b></div>
    <div class="mut">${c.ngr?"NGR "+esc(ngrLbl(c.ngr))+" · ":""}${esc(c.buyer)}${c.loc?" · Deliver to "+esc(c.loc):""}${tdays(c)!=null?" · Payment: "+tlabel(c):(c.terms?" · Payment: "+esc(c.terms):"")}</div><div class="bar"><i style="width:${pc}%"></i></div>
-   ${od.length?`<div class="err" style="font-weight:800;margin-bottom:4px">⚠ OVERDUE ${money(odAmt)} · ${od.length} delivery date${od.length>1?"s":""} past due</div>`:""}<div>Delivered <b>${fmt(dv)}</b> t · Owing <b>${money(owing)}</b> · ${r>=0?`Remaining <b>${fmt(r)}</b> t`:`<span class="err">Over by ${fmt(-r)} t</span>`}</div>
-   ${tdays(c)!=null?`<div style="margin-top:8px"><b>Payment clock · ${tlabel(c)}</b>${pay.length?pay.map(([dt,a])=>{const x=dueOf(dt,tdays(c),c.basis==="eow"),n=dleft(x),amt=a.reduce((s,d)=>s+(valC(d,c)||0),0);return `<div class="it" style="border-top:1px solid var(--bd);padding-top:4px"><span>${dfmt(new Date(dt+"T00:00:00"))} · ${fmt(a.reduce((s,d)=>s+cleanT(d),0))} t<br>Due <b class="${n<0?"err":""}">${dfmt(x)}</b> <span class="${n<0?"err":""}" style="font-weight:${n<0?800:400}">(${clock(x)})</span>${amt>0?` · ≈ ${money(amt)}`:""}</span><button class="x" data-paid="${a.map(d=>d.id).join(",")}">Mark paid</button></div>`}).join(""):`<div class="mut">No payments outstanding.</div>`}</div>`:""}
+   ${od.length?`<div class="err" style="font-weight:800;margin-bottom:4px">⚠ OVERDUE ${money(odAmt)}${sh<100?` (ours ${money(odAmt*sh/100)})`:""} · ${od.length} delivery date${od.length>1?"s":""} past due</div>`:""}<div>Delivered <b>${fmt(dv)}</b> t · Owing <b>${money(owing)}</b>${sh<100?` (ours <b>${money(owing*sh/100)}</b> at ${pct(sh)})`:""} · ${r>=0?`Remaining <b>${fmt(r)}</b> t`:`<span class="err">Over by ${fmt(-r)} t</span>`}</div>
+   ${tdays(c)!=null?`<div style="margin-top:8px"><b>Payment clock · ${tlabel(c)}</b>${pay.length?pay.map(([dt,a])=>{const x=dueOf(dt,tdays(c),c.basis==="eow"),n=dleft(x),amt=a.reduce((s,d)=>s+(valC(d,c)||0),0);return `<div class="it" style="border-top:1px solid var(--bd);padding-top:4px"><span>${dfmt(new Date(dt+"T00:00:00"))} · ${fmt(a.reduce((s,d)=>s+cleanT(d),0))} t<br>Due <b class="${n<0?"err":""}">${dfmt(x)}</b> <span class="${n<0?"err":""}" style="font-weight:${n<0?800:400}">(${clock(x)})</span>${amt>0?` · ≈ ${money(amt)}${sh<100?` · ours <b>${money(amt*sh/100)}</b>`:""}`:""}</span><button class="x" data-paid="${a.map(d=>d.id).join(",")}">Mark paid</button></div>`}).join(""):`<div class="mut">No payments outstanding.</div>`}</div>`:""}
    <div class="row" style="margin-top:2px"><button class="x" data-e="${c.id}">Edit</button>${unp.length?`<button class="x" data-paid="${unp.map(d=>d.id).join(",")}">Mark all paid</button>`:""}<button class="x" data-x="${c.id}">Delete</button></div></div>`}).join(""):`<p class="mut">No contracts yet.</p>`}
 $("#conList").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.paid){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again: paid";return}for(const id of b.dataset.paid.split(","))await db.doc("deliveries/"+id).update({paid:true}).catch(()=>status("Could not mark paid.",true));return}
@@ -395,7 +402,14 @@ $("#o_save").onclick=async()=>{const s=stock().find(x=>x.k===$("#o_src").value),
 $("#o_list").onclick=async e=>{const b=e.target.closest("button");if(!b||!b.dataset.ox)return;
   if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}
   try{await db.doc("outloads/"+b.dataset.ox).delete()}catch(er){status("Could not delete.",true)}};
-function renderStockTot(){const st=stock().filter(s=>s.inn>0&&(totNgr==="__none"?!s.ngr:!totNgr||s.ngr===totNgr));
+function renderMoney(){const box=$("#moneyTot");if(!owner()){box.innerHTML="";return}
+  const rows=totRows(),by={};rows.forEach(d=>{const k=d.ngr||"",x=by[k]=by[k]||{t:0,v:0,nv:0,unpaid:0};x.t+=cleanT(d);const v=val(d)??(()=>{const c=C.find(y=>y.id===d.cid);return c?valC(d,c):null})();if(v==null)x.nv++;else{x.v+=v;if(!d.paid)x.unpaid+=v}});
+  const ks=Object.keys(by).sort((a,b)=>(a==="")-(b==="")||ngrLbl(a).localeCompare(ngrLbl(b)));if(!ks.length){box.innerHTML="";return}
+  const S2={t:0,v:0,o:0,u:0,uo:0};
+  const tr=ks.map(k=>{const x=by[k],sh=shareOf(k);S2.t+=x.t;S2.v+=x.v;S2.o+=x.v*sh/100;S2.u+=x.unpaid;S2.uo+=x.unpaid*sh/100;
+    return `<tr><td>${k?esc(ngrLbl(k)):"No NGR"}${x.nv?`<div class="mut">${x.nv} load${x.nv>1?"s":""} with no price</div>`:""}</td><td class="tn">${fmt(x.t)}</td><td>${money(x.v)}</td><td>${pct(sh)}</td><td class="tn">${money(x.v*sh/100)}</td><td>${money(x.unpaid*sh/100)}</td></tr>`}).join("");
+  box.innerHTML=`<div class="card"><span class="big">Money by NGR</span><div class="wrap"><table><tr><th>NGR</th><th>Tonnes</th><th>Total value</th><th>Our share</th><th>Ours</th><th>Ours still owing</th></tr>${tr}${ks.length>1?`<tr><th>All</th><th class="tn">${fmt(S2.t)}</th><th>${money(S2.v)}</th><th></th><th class="tn">${money(S2.o)}</th><th>${money(S2.uo)}</th></tr>`:""}</table></div><p class="mut">Value uses each load's price, or its contract price if the load has none (canola adjusted for oil). "Still owing" is loads not yet marked paid. Admins only.</p></div>`}
+function renderStockTot(){renderMoney();const st=stock().filter(s=>s.inn>0&&(totNgr==="__none"?!s.ngr:!totNgr||s.ngr===totNgr));
   $("#stockTot").innerHTML=st.length?stockCard(st,totNgr?`Stored on farm · ${totNgr==="__none"?"No NGR":"NGR "+esc(ngrLbl(totNgr))}`:"Stored on farm"):""}
 function renderPad(){renderStockTot();const m={},D=totRows();D.forEach(d=>{const k=d.paddock||"No paddock",x=m[k]=m[k]||{n:0,c:{}};x.n++;x.c[d.crop]=(x.c[d.crop]||0)+cleanT(d)});
   const rows=Object.entries(m).sort((a,b)=>(a[0]==="No paddock")-(b[0]==="No paddock")||a[0].localeCompare(b[0]));

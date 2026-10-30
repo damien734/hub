@@ -20,6 +20,12 @@ export const OWNER_EMAILS = [
   "c_micko17@hotmail.com"
 ];
 
+// Display names for the two owners (shown in the apps instead of the email).
+export const OWNER_NAMES = {
+  "damschneider@hotmail.com": "Damo",
+  "c_micko17@hotmail.com": "Carissa"
+};
+
 // 3) Docket / invoice scanning (Gemini via Firebase AI Logic).
 //    Paste the reCAPTCHA Enterprise SITE key here (NOT a secret, safe to be public).
 //    Leave empty ("") and the Scan buttons simply stay hidden.

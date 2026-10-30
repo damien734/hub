@@ -53,7 +53,7 @@ body.staff .own{display:none!important}
 <h1>🌾 Harvest Grain Tracker <span id="who" class="tag"></span></h1>
 <div id="pvBar" class="msg hide">Previewing the staff view. <button class="x" id="pvExit">Exit preview</button></div>
 <div id="status" class="msg hide"></div>
-<div class="card" style="padding:8px 12px"><label>Your name (required)<input id="f_name" autocomplete="name" placeholder="Enter your name"></label></div>
+<input type="hidden" id="f_name">
 <div class="tabs"><button data-tab="add" class="on">Add</button><button data-tab="del">Loads</button><button data-tab="con" class="own">Contracts</button><button data-tab="out">Out load</button><button data-tab="tot">Totals</button></div>
 
 <section id="t-add">
@@ -168,7 +168,7 @@ const adjP=d=>{const p=P["d_"+d.id];return p==null?null:adj(d.crop,d.oil,p)};
 const val=d=>{const p=adjP(d);return p==null?null:p*cleanT(d)};
 const delivered=c=>D.filter(d=>d.cid===c.id).reduce((a,d)=>a+cleanT(d),0);
 function status(t,err){const e=$("#status");e.textContent=t;e.className="msg"+(err?" err":"")+(t?"":" hide")}
-function mode(){document.body.classList.toggle("staff",!owner());$("#who").textContent=owner()?"Owner":"Staff";$("#pvBar").classList.toggle("hide",!(admin&&pv));fillSelects();preview();renderAll()}
+function mode(){document.body.classList.toggle("staff",!owner());$("#who").textContent=($("#f_name").value?$("#f_name").value+" · ":"")+(owner()?"Owner":"Staff");$("#pvBar").classList.toggle("hide",!(admin&&pv));fillSelects();preview();renderAll()}
 function go(t){document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x.dataset.tab===t));["add","del","con","out","tot"].forEach(k=>$("#t-"+k).classList.toggle("hide",k!==t))}
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
 $("#pvOn").onclick=()=>{pv=true;mode();go("add")};$("#pvExit").onclick=()=>{pv=false;mode()};
@@ -231,7 +231,7 @@ $("#cancelDel").onclick=()=>{endEdit();$("#f_docket").value="";$("#f_t").value="
 $("#saveDel").onclick=async()=>{const d=readDel();
   if(!d.date||!d.t||d.t<=0){status("Enter the tonnes.",true);return}
   if(!d.paddock){status("Choose the paddock this load came from.",true);return}
-  const nm=$("#f_name").value.trim();if(!nm){status("Enter your name at the top first.",true);return}
+  const nm=$("#f_name").value.trim();if(!nm){status("Your login has no name. Sign out and back in.",true);return}
   if(/receival/i.test(d.store)){const miss=d.crop==="Canola"?(d.oil==null||d.adm==null?"oil % and admixture %":""):(d.crop==="Wheat"||d.crop==="Barley")?(d.prot==null||!d.grade?"protein % and grade":""):"";if(miss){status(`Receival site loads need ${miss} entered with the tonnes.`,true);return}}
   if(!db){status("Saving is not available in this view.",true);return}
   try{let id=editD;const old=editD&&D.find(x=>x.id===editD);
@@ -329,7 +329,7 @@ function renderOut(){const st=stock(),has=st.filter(s=>s.left>0.005),cur=$("#o_s
 function outPrev(){const s=stock().find(x=>x.k===$("#o_src").value),t=num("#o_t");$("#o_prev").textContent=s&&t?`${fmt(Math.max(s.left-t,0))} t left in ${s.site||s.store} after this load${t>s.left+0.005?" (more than is stored)":""}`:""}
 $("#o_src").onchange=outPrev;$("#o_t").oninput=outPrev;
 $("#o_save").onclick=async()=>{const s=stock().find(x=>x.k===$("#o_src").value),t=num("#o_t"),date=$("#o_date").value,nm=$("#f_name").value.trim();
-  if(!nm){status("Enter your name at the top first.",true);return}
+  if(!nm){status("Your login has no name. Sign out and back in.",true);return}
   if(!s){status("Choose the silo or bag first.",true);return}
   if(!t||t<=0||!date){status("Enter the tonnes and date.",true);return}
   if(t>s.left+0.005){status(`Only ${fmt(s.left)} t left in ${s.site||s.store}.`,true);return}
@@ -363,14 +363,13 @@ $("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$
   e.target.value=""};
 
 /* start */
-$("#f_date").value=today();$("#o_date").value=today();try{$("#f_name").value=localStorage.getItem("gt_name")||""}catch(e){}
-$("#f_name").oninput=()=>{try{localStorage.setItem("gt_name",$("#f_name").value)}catch(e){}};
+$("#f_date").value=today();$("#o_date").value=today();
 setCrop("Wheat");setSS(L.stores[0],"");mode();
 (async()=>{
   const me=await requireMember();
   admin=me.role==="admin";myId=me.uid;const canWrite=me.role!=="family";
   db=makeDb("grain_");dl=downloads;
-  if(!$("#f_name").value)$("#f_name").value=me.name||"";
+  $("#f_name").value=me.name||me.email||"";
   mode();
   if(canWrite){getScanner().then(sc=>{if(sc){sample=sc;$("#scanBtn").classList.remove("hide")}})}
   if(!canWrite)status("You have view-only access. Ask Damo or Carissa to change you to Staff to add loads.",true);

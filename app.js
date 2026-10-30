@@ -1,6 +1,6 @@
 // Gunnadoo Command Centre — main app.
 // Uses Firebase Auth (logins) + Cloud Firestore (data). No build step needed.
-import { firebaseConfig, OWNER_EMAILS } from "./firebase-config.js";
+import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
@@ -70,10 +70,17 @@ onAuthStateChanged(auth, async (user) => {
 async function loadOrCreateProfile(user) {
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
-  if (snap.exists()) return { uid: user.uid, ...snap.data() };
   const email = lower(user.email);
+  if (snap.exists()) {
+    const p = snap.data();
+    const nice = OWNER_NAMES?.[email];
+    if (nice && p.name !== nice && p.name === email.split("@")[0]) {
+      try { await updateDoc(ref, { name: nice }); p.name = nice; } catch (e) { console.error(e); }
+    }
+    return { uid: user.uid, ...p };
+  }
   if (OWNER_EMAILS.map(lower).includes(email)) {
-    const p = { email, name: user.displayName || email.split("@")[0], role: "admin", joined: serverTimestamp() };
+    const p = { email, name: OWNER_NAMES?.[email] || user.displayName || email.split("@")[0], role: "admin", joined: serverTimestamp() };
     await setDoc(ref, p);
     return { uid: user.uid, ...p };
   }

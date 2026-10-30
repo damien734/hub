@@ -1,5 +1,5 @@
 // Shared login + database helpers for the app pages (grain.html, chemicals.html).
-import { firebaseConfig, OWNER_EMAILS, RECAPTCHA_SITE_KEY } from "./firebase-config.js";
+import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES, RECAPTCHA_SITE_KEY } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
@@ -33,7 +33,7 @@ export function requireMember() {
         const snap = await getDoc(doc(fs, "users", user.uid));
         if (snap.exists()) return resolve({ uid: user.uid, ...snap.data() });
         if (OWNER_EMAILS.map((e) => e.toLowerCase()).includes(String(user.email).toLowerCase()))
-          return resolve({ uid: user.uid, email: user.email, name: user.email.split("@")[0], role: "admin" });
+          return resolve({ uid: user.uid, email: user.email, name: OWNER_NAMES?.[String(user.email).toLowerCase()] || user.email.split("@")[0], role: "admin" });
       } catch (e) { console.error(e); }
       back();
     });

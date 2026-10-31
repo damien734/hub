@@ -375,7 +375,8 @@ async function adminPeople() {
     const email = lower(f.get("email"));
     try {
       await setDoc(doc(db, "invites", email), { name: f.get("name").trim(), role: f.get("role"), invitedBy: me.email, at: serverTimestamp() });
-      toast("Added — tell them to set their password"); adminPeople();
+      await adminPeople();
+      inviteDialog(f.get("name").trim(), email);
     } catch (ex) { document.getElementById("invErr").textContent = friendlyError(ex); }
   };
   const [inv, users] = await Promise.all([getDocs(collection(db, "invites")), getDocs(collection(db, "users"))]);
@@ -389,7 +390,7 @@ async function adminPeople() {
     <td>${p.owner ? "Admin (owner)" : `<select data-role="${esc(p.email)}" style="width:auto;padding:4px 8px">
       ${ROLES.map((r) => `<option value="${r}" ${p.role === r ? "selected" : ""}>${ROLE_LABEL[r]}</option>`).join("")}</select>`}</td>
     <td>${p.joined ? "Active" : `<span class="badge">Waiting to sign up</span>`}</td>
-    <td>${p.owner ? "" : `<button class="btn danger small" data-rm="${esc(p.email)}">Remove</button>`}</td></tr>`).join("")}
+    <td><div class="row" style="flex-wrap:nowrap">${!p.owner && !p.joined ? `<button class="btn ghost small" data-inv="${esc(p.email)}">Send invite</button>` : ""}${p.owner ? "" : `<button class="btn danger small" data-rm="${esc(p.email)}">Remove</button>`}</div></td></tr>`).join("")}
   </tbody></table>`;
   const find = (email) => byEmail[email];
   document.querySelectorAll("[data-role]").forEach((s) => (s.onchange = async () => {
@@ -401,6 +402,7 @@ async function adminPeople() {
       toast("Access updated");
     } catch (ex) { toast(friendlyError(ex)); }
   }));
+  document.querySelectorAll("[data-inv]").forEach((b) => (b.onclick = () => { const p = find(b.dataset.inv); inviteDialog(p.name || "", p.email); }));
   document.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = async () => {
     const p = find(b.dataset.rm);
     if (!confirm(`Remove ${p.name || p.email}? They will lose access straight away.`)) return;
@@ -505,4 +507,31 @@ function adminImport() {
       }
     };
   };
+}
+
+// ---------- invite message (the site doesn't send emails itself) ----------
+function inviteDialog(name, email) {
+  const site = location.origin + location.pathname.replace(/[^/]*$/, "");
+  const first = String(name || "").split(/\s+/)[0] || "there";
+  const msg = `G'day ${first}, you've been given access to the Gunnadoo Grain Command Centre.\n\n` +
+    `1. Open ${site}\n2. Tap "First time here?"\n3. Enter this email: ${email}\n4. Choose a password, then tap the confirm link we email you (check junk).\n\n` +
+    `On a phone, open it in Safari or Chrome and use Share > Add to Home Screen to keep it as an app.`;
+  const dlg = document.createElement("dialog");
+  dlg.innerHTML = `<form method="dialog"><h2 style="margin-top:0">Send the invite</h2>
+    <p class="muted" style="margin-top:0"><b>${esc(name || email)}</b> is on the list. This site doesn't email people itself, so send them this message by text or email:</p>
+    <textarea readonly rows="9" style="font-size:.9rem">${esc(msg)}</textarea>
+    <div class="row" style="margin-top:12px">
+      ${navigator.share ? `<button type="button" class="btn" id="invShare">Share / text</button>` : ""}
+      <a class="btn ${navigator.share ? "ghost" : ""}" style="text-decoration:none" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent("Your Gunnadoo Command Centre login")}&body=${encodeURIComponent(msg)}">Email</a>
+      <a class="btn ghost" style="text-decoration:none" href="sms:?&body=${encodeURIComponent(msg)}">Text message</a>
+      <button type="button" class="btn ghost" id="invCopy">Copy</button>
+      <button class="btn ghost" value="close" style="margin-left:auto">Done</button>
+    </div></form>`;
+  document.body.appendChild(dlg); dlg.showModal();
+  dlg.addEventListener("close", () => dlg.remove());
+  dlg.querySelector("#invShare")?.addEventListener("click", async () => { try { await navigator.share({ title: "Gunnadoo Command Centre", text: msg }); } catch (e) {} });
+  dlg.querySelector("#invCopy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(msg); toast("Copied"); }
+    catch (e) { const t = dlg.querySelector("textarea"); t.focus(); t.select(); toast("Select the text and copy it"); }
+  });
 }

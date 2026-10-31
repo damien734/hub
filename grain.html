@@ -152,6 +152,7 @@ body.staff .own{display:none!important}
    <div id="ngrMgr"></div>
    <div class="grid"><label>NGR number<input id="n_no" inputmode="numeric" autocomplete="off"></label><label>Name (e.g. Gunnadoo Grain, Family Trust)<input id="n_name"></label><label>Our share of the money %<input id="n_share" type="number" step="0.1" min="0" max="100" inputmode="decimal" placeholder="100"></label></div>
    <div class="row"><button class="s" id="n_add">Add NGR</button></div>
+   <div id="padNgrBox" class="hide" style="margin-top:12px"><b>Paddock NGRs</b><p class="mut" style="margin:4px 0 6px">Link each paddock to the NGR its grain is delivered under. Picking that paddock on the Add screen then sets the NGR automatically.</p><div id="padNgrMgr" class="grid"></div></div>
   </div>
   <div class="card">
    <span class="big">Settings</span>
@@ -171,7 +172,7 @@ const money=n=>"$"+fmt(n,0);
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const num=id=>{const v=$(id).value;return v===""?null:Number(v)};
 const CROPS=["Wheat","Canola","Barley","Faba Beans"],DEF=["Receival site","Own silo","Grain bag"],GR={Wheat:["H1","H2","APW1","AH1","ASW1","Feed"],Barley:["Malt 1","Food 1","Feed 1","Feed 2"]};
-let NG=[],totNgr="";
+let NG=[],totNgr="",PN={};
 let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={pcrops:{},paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
 const owner=()=>admin&&!pv;
 const adj=(crop,oil,p)=>crop==="Canola"&&oil!=null?p*(1+S.oilRate/100*(oil-S.oilBase)):p;
@@ -198,7 +199,7 @@ function padCrop(n,dt){const y=yrOf(dt),c=((L.pcrops||{})[y]||{})[n];if(c&&CROPS
   const r=D.filter(d=>d.paddock===n&&String(d.date||"").slice(0,4)===y).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0))[0];return r?r.crop:""}
 $("#addCrop").innerHTML=`<option value="">— grain —</option>`+CROPS.map(c=>`<option>${c}</option>`).join("");
 let padWarn="";
-$("#f_paddock").onchange=e=>{if(e.target.value==="__add"){setPad(curPad);showAdd("paddock");return}curPad=e.target.value;const c=padCrop(curPad,$("#f_date").value);if(c&&c!==$("#f_crop").value){setCrop(c);status(`${curPad} is ${c} this year, so the crop has been set to ${c}.`)}};
+$("#f_paddock").onchange=e=>{if(e.target.value==="__add"){setPad(curPad);showAdd("paddock");return}curPad=e.target.value;{const pn=PN[curPad];if(pn&&NG.some(x=>x.no===pn)&&$("#f_ngr").value!==pn){ngrOpts($("#f_ngr"),pn);conOptions()}}const c=padCrop(curPad,$("#f_date").value);if(c&&c!==$("#f_crop").value){setCrop(c);status(`${curPad} is ${c} this year, so the crop has been set to ${c}.`)}};
 const fillSelects=()=>{setSS(curStore||L.stores[0],curSite);setGrade(curGrade);setPad(curPad)};
 function setGrade(g){curGrade=g||"";$("#f_grade").innerHTML=opts(L.grades[$("#f_crop").value]||[],curGrade,"— select —");$("#f_grade").value=curGrade}
 function showAdd(k){addKind=k;$("#addIn").placeholder=k==="store"?"New storage type":k==="grade"?"New grade":k==="paddock"?"New paddock name":"New silo / bag name";$("#addIn").value="";$("#addCrop").value="";$("#addCrop").classList.toggle("hide",k!=="paddock");$("#addBox").classList.remove("hide");$("#addIn").focus()}
@@ -236,6 +237,8 @@ function fillNgr(){const has=NG.length>0;$("#l_ngr").classList.toggle("hide",!ha
   ngrOpts($("#f_ngr"),def($("#f_ngr").value));ngrOpts($("#o_ngr"),def($("#o_ngr").value));
   $("#l_cngr").classList.toggle("hide",!has);ngrOpts($("#c_ngr"),$("#c_ngr").value);
   $("#ngrMgr").innerHTML=NG.length?NG.map(x=>`<div class="it" style="border-bottom:1px solid var(--bd);padding:4px 0"><b>${esc(ngrLbl(x.no))}</b><span class="row" style="margin:0;align-items:center"><label style="display:flex;align-items:center;gap:6px">Our share<input type="number" step="0.1" min="0" max="100" inputmode="decimal" style="width:90px;min-height:40px" data-share="${esc(x.no)}" value="${esc(shareOf(x.no))}">%</label><button class="x" data-sharesave="${esc(x.no)}">Save</button><button class="x" data-ngrx="${esc(x.no)}">Remove</button></span></div>`).join(""):`<span class="mut">No NGRs yet</span>`;
+  $("#padNgrBox").classList.toggle("hide",!has||!padList().length);
+  $("#padNgrMgr").innerHTML=has?padList().map(pd=>`<label>Paddock ${esc(pd)}<select data-pn="${esc(pd)}"><option value="">— no NGR set —</option>${NG.map(x=>`<option value="${esc(x.no)}"${PN[pd]===x.no?" selected":""}>${esc(ngrLbl(x.no))}</option>`).join("")}</select></label>`).join(""):"";
   const used=[...new Set(D.map(d=>d.ngr).filter(Boolean))],tabs=[...new Set([...NG.map(x=>x.no),...used])];
   if(totNgr&&!tabs.includes(totNgr)&&totNgr!=="__none")totNgr="";
   const none=D.some(d=>!d.ngr)&&tabs.length;
@@ -257,6 +260,9 @@ const saveShare=async(no,v)=>{v=Number(v);if(!isFinite(v)||v<0||v>100){status("S
 $("#ngrMgr").onclick=async e=>{const sv=e.target.closest("[data-sharesave]");if(sv){const i=$(`[data-share="${CSS.escape(sv.dataset.sharesave)}"]`);await saveShare(sv.dataset.sharesave,i.value);return}
   const b=e.target.closest("[data-ngrx]");if(!b)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="tap again";return}
   NG=NG.filter(x=>x.no!==b.dataset.ngrx);await saveNG()};
+$("#padNgrMgr").onchange=async e=>{const sel=e.target.closest("[data-pn]");if(!sel)return;const pd=sel.dataset.pn,next={...PN};
+  if(sel.value)next[pd]=sel.value;else delete next[pd];
+  try{await db.doc("settings/padngr").set({map:next});PN=next;status(`Paddock ${pd} ${sel.value?"linked to NGR "+ngrLbl(sel.value):"no longer linked to an NGR"}.`)}catch(er){status("Could not save ("+(er.code||"error")+").",true)}};
 $("#f_ngr").onchange=()=>{try{localStorage.setItem("gt_ngr",$("#f_ngr").value)}catch(e){}conOptions()};
 function readDel(){return{ngr:$("#f_ngr").value||null,date:$("#f_date").value,crop:$("#f_crop").value,store:$("#f_store").value,site:$("#f_site").value,docket:$("#f_docket").value.trim(),rego:$("#f_rego").value.trim().toUpperCase(),paddock:$("#f_paddock").value||null,t:num("#f_t"),
   prot:vis("#l_prot")?num("#f_prot"):null,scr:vis("#l_scr")?num("#f_scr"):null,grade:vis("#l_grade")?($("#f_grade").value||null):null,oil:vis("#l_oil")?num("#f_oil"):null,adm:vis("#l_adm")?num("#f_adm"):null,moist:vis("#l_moist")?num("#f_moist"):null,tw:vis("#l_tw")?num("#f_tw"):null,cid:$("#f_con").value||null}}
@@ -281,6 +287,7 @@ $("#cancelDel").onclick=()=>{endEdit();$("#f_docket").value="";$("#f_t").value="
 $("#saveDel").onclick=async()=>{const d=readDel();
   if(!d.date||!d.t||d.t<=0){status("Enter the tonnes.",true);return}
   if(NG.length&&!d.ngr){status("Choose the NGR this load is delivered under.",true);return}
+  {const pn=PN[d.paddock],wk="n|"+d.paddock+"|"+d.ngr;if(pn&&d.ngr&&pn!==d.ngr&&padWarn!==wk){padWarn=wk;status(`Paddock ${d.paddock} is linked to NGR ${ngrLbl(pn)}, but this load is NGR ${ngrLbl(d.ngr)}. Tap Save again if that is right.`,true);return}}
   {const c=C.find(x=>x.id===d.cid);if(c&&c.ngr&&d.ngr&&c.ngr!==d.ngr){status(`Contract ${c.no} is under NGR ${ngrLbl(c.ngr)}, but this load is NGR ${ngrLbl(d.ngr)}. Change one of them.`,true);return}}
   if(!d.paddock){status("Choose the paddock this load came from.",true);return}
   {const pc=padCrop(d.paddock,d.date),wk=d.paddock+"|"+d.crop+"|"+yrOf(d.date);if(pc&&pc!==d.crop&&padWarn!==wk){padWarn=wk;status(`${d.paddock} is ${pc} this year, but this load is ${d.crop}. Tap Save again if that is right.`,true);return}}
@@ -450,6 +457,7 @@ setCrop("Wheat");setSS(L.stores[0],"");mode();
   db.collection("outloads").onSnapshot(s=>{O=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.collection("contracts").onSnapshot(s=>{C=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.doc("settings/main").onSnapshot(s=>{if(s.exists)S={...S,...s.data()};renderAll()},()=>{});
+  db.doc("settings/padngr").onSnapshot(s=>{PN=s.exists&&s.data().map?s.data().map:{};fillNgr()},()=>{});
   db.doc("settings/ngrs").onSnapshot(s=>{NG=s.exists&&Array.isArray(s.data().list)?s.data().list:[];fillNgr();renderAll()},()=>{});
   db.doc("lists/main").onSnapshot(s=>{if(s.exists){const x=JSON.parse(JSON.stringify(s.data()));L={pcrops:x.pcrops||{},paddocks:x.paddocks||[],stores:x.stores||[...DEF],sites:x.sites||{},grades:x.grades||JSON.parse(JSON.stringify(GR))};fillSelects();renderAll()}},()=>{});
   if(admin)db.collection("pricing").onSnapshot(s=>{P={};s.docs.forEach(x=>P[x.id]=x.data().v);if(owner()&&!editD&&!$("#f_price").value){const lp=lastPrice($("#f_crop").value);if(lp!=null)$("#f_price").value=lp}renderAll()},()=>{});

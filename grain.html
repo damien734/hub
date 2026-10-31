@@ -70,10 +70,11 @@ body.staff .own{display:none!important}
   <div id="addBox" class="row hide"><input id="addIn" style="flex:1"><select id="addCrop" class="hide"></select><button class="p" id="addOk">Add</button><button class="s" id="addNo">Cancel</button></div>
   <div class="grid">
    <label id="l_ngr" class="hide">NGR<select id="f_ngr"></select></label>
+   <label id="l_farm" class="hide">Farm<select id="f_farm"></select></label>
    <label>Paddock<select id="f_paddock"></select></label>
    <label>Tonnes<input type="number" id="f_t" step="0.01" inputmode="decimal"></label>
    <label>Docket no.<input id="f_docket"></label>
-   <label>Truck rego<input id="f_rego" autocapitalize="characters" autocomplete="off"></label>
+   <label>Truck rego<select id="f_rego"></select></label>
    <label id="l_prot">Protein %<input type="number" id="f_prot" step="0.1" inputmode="decimal"></label>
    <label id="l_grade">Grade<select id="f_grade"></select></label>
    <label id="l_scr">Screenings %<input type="number" id="f_scr" step="0.1" inputmode="decimal"></label>
@@ -126,7 +127,7 @@ body.staff .own{display:none!important}
    <label>Tonnes out<input type="number" id="o_t" step="0.01" inputmode="decimal"></label>
    <label>Delivered to<select id="o_dest"></select></label>
    <label>Docket no.<input id="o_docket"></label>
-   <label>Truck rego<input id="o_rego" autocapitalize="characters" autocomplete="off"></label>
+   <label>Truck rego<select id="o_rego"></select></label>
    <label>Date<input type="date" id="o_date"></label>
   </div>
   <div class="mut">Receival sites are the ones on the Add screen (Stored in: Receival site). Add new ones there.</div>
@@ -152,7 +153,12 @@ body.staff .own{display:none!important}
    <div id="ngrMgr"></div>
    <div class="grid"><label>NGR number<input id="n_no" inputmode="numeric" autocomplete="off"></label><label>Name (e.g. Gunnadoo Grain, Family Trust)<input id="n_name"></label><label>Our share of the money %<input id="n_share" type="number" step="0.1" min="0" max="100" inputmode="decimal" placeholder="100"></label></div>
    <div class="row"><button class="s" id="n_add">Add NGR</button></div>
-   <div id="padNgrBox" class="hide" style="margin-top:12px"><b>Paddock NGRs</b><p class="mut" style="margin:4px 0 6px">Link each paddock to the NGR its grain is delivered under. Picking that paddock on the Add screen then sets the NGR automatically.</p><div id="padNgrMgr" class="grid"></div></div>
+   <div style="margin-top:14px"><b>Farms</b><p class="mut" style="margin:4px 0 6px">Give each farm its NGR, then put each paddock on a farm. On the Add screen staff pick the farm (or the paddock) and the NGR fills in for every paddock on that farm.</p>
+    <div id="farmMgr"></div>
+    <div class="grid"><label>Farm name<input id="fa_name" placeholder="e.g. Culcairn, Alma Park"></label><label>NGR for this farm<select id="fa_ngr"></select></label></div>
+    <div class="row"><button class="s" id="fa_add">Add farm</button></div>
+    <div id="padFarmBox" class="hide" style="margin-top:10px"><b>Paddocks on each farm</b><div id="padFarmMgr" class="grid"></div></div>
+   </div>
   </div>
   <div class="card">
    <span class="big">Settings</span>
@@ -172,7 +178,7 @@ const money=n=>"$"+fmt(n,0);
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const num=id=>{const v=$(id).value;return v===""?null:Number(v)};
 const CROPS=["Wheat","Canola","Barley","Faba Beans"],DEF=["Receival site","Own silo","Grain bag"],GR={Wheat:["H1","H2","APW1","AH1","ASW1","Feed"],Barley:["Malt 1","Food 1","Feed 1","Feed 2"]};
-let NG=[],totNgr="",PN={};
+let NG=[],totNgr="",PN={},FM=[];
 let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={pcrops:{},paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
 const owner=()=>admin&&!pv;
 const adj=(crop,oil,p)=>crop==="Canola"&&oil!=null?p*(1+S.oilRate/100*(oil-S.oilBase)):p;
@@ -193,16 +199,29 @@ $("#cropBtns").onclick=e=>{const b=e.target.closest("button");if(b&&b.dataset.c!
 const opts=(list,cur,ph,staffAdd)=>{const a=[...list];if(cur&&!a.includes(cur))a.push(cur);return (ph?`<option value="">${ph}</option>`:"")+a.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("")+(owner()||staffAdd?`<option value="__add">＋ Add new…</option>`:"")};
 function setSS(store,site){curStore=store;curSite=site||"";$("#f_store").innerHTML=opts(L.stores,store);$("#f_store").value=store;$("#f_site").innerHTML=opts(L.sites[store]||[],curSite,"— select —",true);$("#f_site").value=curSite}
 const padList=()=>[...new Set([...(L.paddocks||[]),...D.map(d=>d.paddock).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
-function setPad(v){curPad=v||"";$("#f_paddock").innerHTML=opts(padList(),curPad,"— select paddock —",true);$("#f_paddock").value=curPad}
+const pfarm=pd=>(L.pfarm||{})[pd]||"";
+const farmNgr=fm=>{const f=FM.find(x=>x.name===fm);return f&&f.ngr||""};
+const padNgr=pd=>farmNgr(pfarm(pd))||PN[pd]||"";
+function setPad(v){curPad=v||"";const fm=$("#f_farm").value;let list=padList();if(fm)list=list.filter(p=>pfarm(p)===fm);
+  $("#f_paddock").innerHTML=opts(list,curPad,fm?`— select ${fm} paddock —`:"— select paddock —",true);$("#f_paddock").value=curPad}
+function setFarms(){const has=FM.length>0;$("#l_farm").classList.toggle("hide",!has);const sel=$("#f_farm"),cur=sel.value;
+  sel.innerHTML=`<option value="">— all farms —</option>`+FM.map(f=>`<option value="${esc(f.name)}">${esc(f.name)}</option>`).join("");sel.value=FM.some(f=>f.name===cur)?cur:""}
+const regoList=()=>[...new Set([...(L.regos||[]),...D.map(d=>d.rego),...O.map(o=>o.rego)].filter(Boolean).map(x=>String(x).toUpperCase()))].sort();
+let regoTarget="f_rego";
+function setRego(sel,v){v=String(v||"").toUpperCase();sel.innerHTML=opts(regoList(),v,"— select truck —",true);sel.value=v}
+["f_rego","o_rego"].forEach(id=>$("#"+id).onchange=e=>{if(e.target.value==="__add"){setRego(e.target,e.target.dataset.cur||"");regoTarget=id;showAdd("rego");return}e.target.dataset.cur=e.target.value});
+const rememberRego=async r=>{r=String(r||"").toUpperCase();if(!r||(L.regos||[]).includes(r))return;L.regos=[...(L.regos||[]),r];await saveL()};
+$("#f_farm").onchange=()=>{const fm=$("#f_farm").value,ng=farmNgr(fm);if(ng&&NG.some(x=>x.no===ng)&&$("#f_ngr").value!==ng){ngrOpts($("#f_ngr"),ng);conOptions()}
+  setPad(fm&&curPad&&pfarm(curPad)!==fm?"":curPad)};
 const yrOf=dt=>String(dt||today()).slice(0,4);
 function padCrop(n,dt){const y=yrOf(dt),c=((L.pcrops||{})[y]||{})[n];if(c&&CROPS.includes(c))return c;
   const r=D.filter(d=>d.paddock===n&&String(d.date||"").slice(0,4)===y).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0))[0];return r?r.crop:""}
 $("#addCrop").innerHTML=`<option value="">— grain —</option>`+CROPS.map(c=>`<option>${c}</option>`).join("");
 let padWarn="";
-$("#f_paddock").onchange=e=>{if(e.target.value==="__add"){setPad(curPad);showAdd("paddock");return}curPad=e.target.value;{const pn=PN[curPad];if(pn&&NG.some(x=>x.no===pn)&&$("#f_ngr").value!==pn){ngrOpts($("#f_ngr"),pn);conOptions()}}const c=padCrop(curPad,$("#f_date").value);if(c&&c!==$("#f_crop").value){setCrop(c);status(`${curPad} is ${c} this year, so the crop has been set to ${c}.`)}};
-const fillSelects=()=>{setSS(curStore||L.stores[0],curSite);setGrade(curGrade);setPad(curPad)};
+$("#f_paddock").onchange=e=>{if(e.target.value==="__add"){setPad(curPad);showAdd("paddock");return}curPad=e.target.value;{const fm=pfarm(curPad);if(fm&&$("#f_farm").value!==fm&&FM.some(f=>f.name===fm)){$("#f_farm").value=fm;setPad(curPad)}const pn=padNgr(curPad);if(pn&&NG.some(x=>x.no===pn)&&$("#f_ngr").value!==pn){ngrOpts($("#f_ngr"),pn);conOptions()}}const c=padCrop(curPad,$("#f_date").value);if(c&&c!==$("#f_crop").value){setCrop(c);status(`${curPad} is ${c} this year, so the crop has been set to ${c}.`)}};
+const fillSelects=()=>{setFarms();setSS(curStore||L.stores[0],curSite);setGrade(curGrade);setPad(curPad);setRego($("#f_rego"),$("#f_rego").value);setRego($("#o_rego"),$("#o_rego").value)};
 function setGrade(g){curGrade=g||"";$("#f_grade").innerHTML=opts(L.grades[$("#f_crop").value]||[],curGrade,"— select —");$("#f_grade").value=curGrade}
-function showAdd(k){addKind=k;$("#addIn").placeholder=k==="store"?"New storage type":k==="grade"?"New grade":k==="paddock"?"New paddock name":"New silo / bag name";$("#addIn").value="";$("#addCrop").value="";$("#addCrop").classList.toggle("hide",k!=="paddock");$("#addBox").classList.remove("hide");$("#addIn").focus()}
+function showAdd(k){addKind=k;$("#addIn").placeholder=k==="store"?"New storage type":k==="grade"?"New grade":k==="paddock"?"New paddock name":k==="rego"?"New truck rego":"New silo / bag name";$("#addIn").value="";$("#addCrop").value="";$("#addCrop").classList.toggle("hide",k!=="paddock");$("#addBox").classList.remove("hide");$("#addIn").focus()}
 $("#f_store").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("store");return}setSS(e.target.value,"")};
 $("#f_site").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("site");return}curSite=e.target.value};
 $("#addNo").onclick=()=>$("#addBox").classList.add("hide");
@@ -212,12 +231,14 @@ $("#addOk").onclick=async()=>{const v=$("#addIn").value.trim();if(!v)return;
   if(addKind==="paddock"&&!$("#addCrop").value){status("Choose the grain for this paddock for this year.",true);return}
   if(addKind==="store"){if(!L.stores.includes(v))L.stores.push(v);setSS(v,"")}
   else if(addKind==="grade"){const c=$("#f_crop").value;(L.grades[c]=L.grades[c]||[]);if(!L.grades[c].includes(v))L.grades[c].push(v);setGrade(v)}
-  else if(addKind==="paddock"){L.paddocks=L.paddocks||[];if(!L.paddocks.includes(v))L.paddocks.push(v);const gc=$("#addCrop").value,y=yrOf($("#f_date").value);L.pcrops=L.pcrops||{};(L.pcrops[y]=L.pcrops[y]||{})[v]=gc;status("");if($("#f_crop").value!==gc)setCrop(gc);setPad(v)}
+  else if(addKind==="rego"){const r=v.toUpperCase();L.regos=L.regos||[];if(!L.regos.includes(r))L.regos.push(r);setRego($("#"+regoTarget),r);$("#"+regoTarget).dataset.cur=r}
+  else if(addKind==="paddock"){L.paddocks=L.paddocks||[];if(!L.paddocks.includes(v))L.paddocks.push(v);if($("#f_farm").value){L.pfarm=L.pfarm||{};L.pfarm[v]=$("#f_farm").value}const gc=$("#addCrop").value,y=yrOf($("#f_date").value);L.pcrops=L.pcrops||{};(L.pcrops[y]=L.pcrops[y]||{})[v]=gc;status("");if($("#f_crop").value!==gc)setCrop(gc);setPad(v)}
   else{(L.sites[curStore]=L.sites[curStore]||[]);if(!L.sites[curStore].includes(v))L.sites[curStore].push(v);setSS(curStore,v)}
   $("#addBox").classList.add("hide");await saveL();renderLists()};
-function renderLists(){$("#listMgr").innerHTML=`<div style="margin-bottom:8px"><b>Paddocks</b><div>${(L.paddocks||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-pd="1" data-pn="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No paddocks yet</span>`}</div></div>`+["Wheat","Barley"].map(c=>`<div style="margin-bottom:8px"><b>${c} grades</b><div>${(L.grades[c]||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-g="${c}" data-n="${esc(n)}">×</button></span>`).join("")}</div></div>`).join("")+L.stores.map(s=>`<div style="margin-bottom:8px"><b>${esc(s)}</b> <button class="x" data-rs="${esc(s)}">remove</button><div>${(L.sites[s]||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-s="${esc(s)}" data-n="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No sites yet</span>`}</div></div>`).join("")}
+function renderLists(){$("#listMgr").innerHTML=`<div style="margin-bottom:8px"><b>Trucks</b><div>${(L.regos||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-rg="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No trucks yet. Add one from the Truck rego list.</span>`}</div></div>`+`<div style="margin-bottom:8px"><b>Paddocks</b><div>${(L.paddocks||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-pd="1" data-pn="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No paddocks yet</span>`}</div></div>`+["Wheat","Barley"].map(c=>`<div style="margin-bottom:8px"><b>${c} grades</b><div>${(L.grades[c]||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-g="${c}" data-n="${esc(n)}">×</button></span>`).join("")}</div></div>`).join("")+L.stores.map(s=>`<div style="margin-bottom:8px"><b>${esc(s)}</b> <button class="x" data-rs="${esc(s)}">remove</button><div>${(L.sites[s]||[]).map(n=>`<span class="tag">${esc(n)} <button class="x" style="padding:0 4px;min-height:24px" data-s="${esc(s)}" data-n="${esc(n)}">×</button></span>`).join("")||`<span class="mut">No sites yet</span>`}</div></div>`).join("")}
 $("#listMgr").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.pd){L.paddocks=(L.paddocks||[]).filter(x=>x!==b.dataset.pn);Object.values(L.pcrops||{}).forEach(m=>delete m[b.dataset.pn])}
+  if(b.dataset.rg){L.regos=(L.regos||[]).filter(x=>x!==b.dataset.rg)}
+  else if(b.dataset.pd){if(L.pfarm)delete L.pfarm[b.dataset.pn];L.paddocks=(L.paddocks||[]).filter(x=>x!==b.dataset.pn);Object.values(L.pcrops||{}).forEach(m=>delete m[b.dataset.pn])}
   else if(b.dataset.g){L.grades[b.dataset.g]=(L.grades[b.dataset.g]||[]).filter(x=>x!==b.dataset.n)}
   else if(b.dataset.rs){L.stores=L.stores.filter(x=>x!==b.dataset.rs);delete L.sites[b.dataset.rs]}
   else if(b.dataset.n){L.sites[b.dataset.s]=(L.sites[b.dataset.s]||[]).filter(x=>x!==b.dataset.n)}
@@ -237,8 +258,12 @@ function fillNgr(){const has=NG.length>0;$("#l_ngr").classList.toggle("hide",!ha
   ngrOpts($("#f_ngr"),def($("#f_ngr").value));ngrOpts($("#o_ngr"),def($("#o_ngr").value));
   $("#l_cngr").classList.toggle("hide",!has);ngrOpts($("#c_ngr"),$("#c_ngr").value);
   $("#ngrMgr").innerHTML=NG.length?NG.map(x=>`<div class="it" style="border-bottom:1px solid var(--bd);padding:4px 0"><b>${esc(ngrLbl(x.no))}</b><span class="row" style="margin:0;align-items:center"><label style="display:flex;align-items:center;gap:6px">Our share<input type="number" step="0.1" min="0" max="100" inputmode="decimal" style="width:90px;min-height:40px" data-share="${esc(x.no)}" value="${esc(shareOf(x.no))}">%</label><button class="x" data-sharesave="${esc(x.no)}">Save</button><button class="x" data-ngrx="${esc(x.no)}">Remove</button></span></div>`).join(""):`<span class="mut">No NGRs yet</span>`;
-  $("#padNgrBox").classList.toggle("hide",!has||!padList().length);
-  $("#padNgrMgr").innerHTML=has?padList().map(pd=>`<label>Paddock ${esc(pd)}<select data-pn="${esc(pd)}"><option value="">— no NGR set —</option>${NG.map(x=>`<option value="${esc(x.no)}"${PN[pd]===x.no?" selected":""}>${esc(ngrLbl(x.no))}</option>`).join("")}</select></label>`).join(""):"";
+  const ngOpt=cur=>`<option value="">— no NGR —</option>`+NG.map(x=>`<option value="${esc(x.no)}"${cur===x.no?" selected":""}>${esc(ngrLbl(x.no))}</option>`).join("");
+  $("#fa_ngr").innerHTML=ngOpt($("#fa_ngr").value);
+  $("#farmMgr").innerHTML=FM.length?FM.map(f=>`<div class="it" style="border-bottom:1px solid var(--bd);padding:4px 0"><b>${esc(f.name)}</b><span class="row" style="margin:0;align-items:center"><select data-fngr="${esc(f.name)}" style="min-height:40px;width:auto">${ngOpt(f.ngr||"")}</select><button class="x" data-fx="${esc(f.name)}">Remove</button></span></div>`).join(""):`<span class="mut">No farms yet</span>`;
+  $("#padFarmBox").classList.toggle("hide",!FM.length||!padList().length);
+  $("#padFarmMgr").innerHTML=FM.length?padList().map(pd=>`<label>Paddock ${esc(pd)}<select data-pf="${esc(pd)}"><option value="">— no farm —</option>${FM.map(f=>`<option value="${esc(f.name)}"${pfarm(pd)===f.name?" selected":""}>${esc(f.name)}${f.ngr?" · "+esc(ngrLbl(f.ngr)):""}</option>`).join("")}</select></label>`).join(""):"";
+  setFarms();
   const used=[...new Set(D.map(d=>d.ngr).filter(Boolean))],tabs=[...new Set([...NG.map(x=>x.no),...used])];
   if(totNgr&&!tabs.includes(totNgr)&&totNgr!=="__none")totNgr="";
   const none=D.some(d=>!d.ngr)&&tabs.length;
@@ -260,11 +285,18 @@ const saveShare=async(no,v)=>{v=Number(v);if(!isFinite(v)||v<0||v>100){status("S
 $("#ngrMgr").onclick=async e=>{const sv=e.target.closest("[data-sharesave]");if(sv){const i=$(`[data-share="${CSS.escape(sv.dataset.sharesave)}"]`);await saveShare(sv.dataset.sharesave,i.value);return}
   const b=e.target.closest("[data-ngrx]");if(!b)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="tap again";return}
   NG=NG.filter(x=>x.no!==b.dataset.ngrx);await saveNG()};
-$("#padNgrMgr").onchange=async e=>{const sel=e.target.closest("[data-pn]");if(!sel)return;const pd=sel.dataset.pn,next={...PN};
-  if(sel.value)next[pd]=sel.value;else delete next[pd];
-  try{await db.doc("settings/padngr").set({map:next});PN=next;status(`Paddock ${pd} ${sel.value?"linked to NGR "+ngrLbl(sel.value):"no longer linked to an NGR"}.`)}catch(er){status("Could not save ("+(er.code||"error")+").",true)}};
+const saveFM=async next=>{try{await db.doc("settings/farms").set({list:next});FM=next;fillNgr();setPad(curPad);return true}catch(er){status("Could not save farms ("+(er.code||"error")+").",true);return false}};
+$("#fa_add").onclick=async()=>{const name=$("#fa_name").value.trim();if(!name){status("Enter the farm name.",true);return}
+  if(FM.some(f=>f.name.toLowerCase()===name.toLowerCase())){status("That farm is already on the list.",true);return}
+  if(await saveFM([...FM,{name,ngr:$("#fa_ngr").value||""}])){$("#fa_name").value="";status(`Farm ${name} added. Now put its paddocks on it below.`)}};
+$("#farmMgr").onchange=async e=>{const sel=e.target.closest("[data-fngr]");if(!sel)return;
+  if(await saveFM(FM.map(f=>f.name===sel.dataset.fngr?{...f,ngr:sel.value}:f)))status(`${sel.dataset.fngr} ${sel.value?"is now NGR "+ngrLbl(sel.value):"has no NGR"}.`)};
+$("#farmMgr").onclick=async e=>{const b=e.target.closest("[data-fx]");if(!b)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again";return}
+  const n=b.dataset.fx;if(await saveFM(FM.filter(f=>f.name!==n))){if(L.pfarm)Object.keys(L.pfarm).forEach(k=>{if(L.pfarm[k]===n)delete L.pfarm[k]});await saveL()}};
+$("#padFarmMgr").onchange=async e=>{const sel=e.target.closest("[data-pf]");if(!sel)return;L.pfarm=L.pfarm||{};
+  if(sel.value)L.pfarm[sel.dataset.pf]=sel.value;else delete L.pfarm[sel.dataset.pf];await saveL();status(`Paddock ${sel.dataset.pf} ${sel.value?"is on "+sel.value:"has no farm"}.`);setPad(curPad)};
 $("#f_ngr").onchange=()=>{try{localStorage.setItem("gt_ngr",$("#f_ngr").value)}catch(e){}conOptions()};
-function readDel(){return{ngr:$("#f_ngr").value||null,date:$("#f_date").value,crop:$("#f_crop").value,store:$("#f_store").value,site:$("#f_site").value,docket:$("#f_docket").value.trim(),rego:$("#f_rego").value.trim().toUpperCase(),paddock:$("#f_paddock").value||null,t:num("#f_t"),
+function readDel(){return{farm:($("#f_farm").value||pfarm($("#f_paddock").value))||null,ngr:$("#f_ngr").value||null,date:$("#f_date").value,crop:$("#f_crop").value,store:$("#f_store").value,site:$("#f_site").value,docket:$("#f_docket").value.trim(),rego:$("#f_rego").value.trim().toUpperCase(),paddock:$("#f_paddock").value||null,t:num("#f_t"),
   prot:vis("#l_prot")?num("#f_prot"):null,scr:vis("#l_scr")?num("#f_scr"):null,grade:vis("#l_grade")?($("#f_grade").value||null):null,oil:vis("#l_oil")?num("#f_oil"):null,adm:vis("#l_adm")?num("#f_adm"):null,moist:vis("#l_moist")?num("#f_moist"):null,tw:vis("#l_tw")?num("#f_tw"):null,cid:$("#f_con").value||null}}
 function preview(){const d=readDel();let s="";
   if(d.t&&d.crop==="Canola")s=`Clean tonnes: ${fmt(cleanT(d))}`;
@@ -278,7 +310,7 @@ function fillFrom(d,full){setCrop(d.crop);setSS(d.store||L.stores[0],d.site||"")
   $("#f_prot").value=full?(d.prot??""):"";$("#f_scr").value=full?(d.scr??""):"";$("#f_oil").value=full?(d.oil??""):"";$("#f_adm").value=full?(d.adm??""):"";$("#f_moist").value=full?(d.moist??""):"";$("#f_tw").value=full?(d.tw??""):"";
   $("#f_con").value=d.cid||"";$("#f_price").value=owner()?((full?P["d_"+d.id]:(lastPrice(d.crop)??P["d_"+d.id]))??""):"";
   if(d.ngr)ngrOpts($("#f_ngr"),d.ngr);
-  $("#f_docket").value=full?(d.docket||""):"";$("#f_rego").value=d.rego||"";setPad(full?d.paddock:"");$("#f_t").value=full?(d.t??""):"";if(full)$("#f_date").value=d.date;preview()}
+  $("#f_docket").value=full?(d.docket||""):"";setRego($("#f_rego"),d.rego||"");if(FM.some(f=>f.name===d.farm))$("#f_farm").value=d.farm;setPad(full?d.paddock:"");$("#f_t").value=full?(d.t??""):"";if(full)$("#f_date").value=d.date;preview()}
 function lastPrice(c){const r=D.filter(x=>x.crop===c&&P["d_"+x.id]!=null).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0))[0];return r?P["d_"+r.id]:null}
 function lastLoad(){const m=D.filter(x=>x.by===myId),a=m.length?m:D;return a.reduce((b,x)=>!b||(x.ts||0)>(b.ts||0)?x:b,null)}
 $("#again").onclick=()=>{const l=lastLoad();if(!l){status("No earlier load to copy yet.",true);return}status("");fillFrom(l,false);$("#f_t").focus()};
@@ -287,7 +319,7 @@ $("#cancelDel").onclick=()=>{endEdit();$("#f_docket").value="";$("#f_t").value="
 $("#saveDel").onclick=async()=>{const d=readDel();
   if(!d.date||!d.t||d.t<=0){status("Enter the tonnes.",true);return}
   if(NG.length&&!d.ngr){status("Choose the NGR this load is delivered under.",true);return}
-  {const pn=PN[d.paddock],wk="n|"+d.paddock+"|"+d.ngr;if(pn&&d.ngr&&pn!==d.ngr&&padWarn!==wk){padWarn=wk;status(`Paddock ${d.paddock} is linked to NGR ${ngrLbl(pn)}, but this load is NGR ${ngrLbl(d.ngr)}. Tap Save again if that is right.`,true);return}}
+  {const pn=padNgr(d.paddock),wk="n|"+d.paddock+"|"+d.ngr;if(pn&&d.ngr&&pn!==d.ngr&&padWarn!==wk){padWarn=wk;status(`Paddock ${d.paddock}${pfarm(d.paddock)?" ("+pfarm(d.paddock)+")":""} is linked to NGR ${ngrLbl(pn)}, but this load is NGR ${ngrLbl(d.ngr)}. Tap Save again if that is right.`,true);return}}
   {const c=C.find(x=>x.id===d.cid);if(c&&c.ngr&&d.ngr&&c.ngr!==d.ngr){status(`Contract ${c.no} is under NGR ${ngrLbl(c.ngr)}, but this load is NGR ${ngrLbl(d.ngr)}. Change one of them.`,true);return}}
   if(!d.paddock){status("Choose the paddock this load came from.",true);return}
   {const pc=padCrop(d.paddock,d.date),wk=d.paddock+"|"+d.crop+"|"+yrOf(d.date);if(pc&&pc!==d.crop&&padWarn!==wk){padWarn=wk;status(`${d.paddock} is ${pc} this year, but this load is ${d.crop}. Tap Save again if that is right.`,true);return}}
@@ -297,6 +329,7 @@ $("#saveDel").onclick=async()=>{const d=readDel();
   try{let id=editD;const old=editD&&D.find(x=>x.id===editD);
    if(old){d.ts=old.ts;d.by=old.by;d.byName=old.byName||nm;d.editedBy=nm;if(old.paid)d.paid=true;await db.doc("deliveries/"+id).set(d)}else{d.ts=Date.now();d.by=myId;d.byName=nm;const r=db.collection("deliveries").doc();id=r.id;await r.set(d)}
    if(owner()){const p=num("#f_price"),pr=db.doc("pricing/d_"+id);if(p!=null)await pr.set({v:p});else if(old)await pr.delete().catch(()=>{})}
+   rememberRego(d.rego);
    $("#toast").textContent=`Saved ✓ ${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}`;status("");
    endEdit();$("#f_docket").value="";$("#f_t").value="";$("#f_prot").value="";$("#f_scr").value="";$("#f_oil").value="";$("#f_adm").value="";$("#f_moist").value="";$("#f_tw").value="";setGrade("");setPad("");preview();$("#f_t").focus()}
   catch(e){status("Could not save ("+(e.code||"error")+"). Family logins are view only.",true)}};
@@ -307,7 +340,7 @@ function renderDel(){
   $("#delList").innerHTML=rows.length?rows.map(d=>{const c=C.find(x=>x.id===d.cid),v=owner()?val(d):null;
    const q=[d.grade?`Grade ${esc(d.grade)}`:"",d.prot!=null?`Protein ${fmt(d.prot,1)}%`:"",d.scr!=null?`Screenings ${fmt(d.scr,1)}%`:"",d.oil!=null?`Oil ${fmt(d.oil,1)}%`:"",d.adm!=null?`Admix ${fmt(d.adm)}%`:"",d.moist!=null?`Moisture ${fmt(d.moist,1)}%`:"",d.tw!=null?`Test wt ${fmt(d.tw,1)} kg/hl`:""].filter(Boolean).join(" · ");
    return `<div class="card cr-${d.crop.replace(/\s/g,"")}"><div class="it"><b>${esc(d.date)} · ${esc(d.crop)}</b><b>${fmt(d.t)} t${d.crop==="Canola"&&d.adm?` <span class="mut">(${fmt(cleanT(d))} clean)</span>`:""}</b></div>
-   <div class="mut">${esc(d.store)}${d.site?" – "+esc(d.site):""}${d.docket?" · Docket "+esc(d.docket):""}${d.rego?" · Rego "+esc(d.rego):""}${d.paddock?" · Paddock "+esc(d.paddock):""}${d.ngr?" · NGR "+esc(ngrLbl(d.ngr)):""}</div>${owner()&&d.byName?`<div class="mut">Entered by ${esc(d.byName)}${d.editedBy&&d.editedBy!==d.byName?` · edited by ${esc(d.editedBy)}`:""}</div>`:""}${q?`<div>${q}</div>`:""}
+   <div class="mut">${esc(d.store)}${d.site?" – "+esc(d.site):""}${d.docket?" · Docket "+esc(d.docket):""}${d.rego?" · Rego "+esc(d.rego):""}${d.farm?" · "+esc(d.farm):""}${d.paddock?" · Paddock "+esc(d.paddock):""}${d.ngr?" · NGR "+esc(ngrLbl(d.ngr)):""}</div>${owner()&&d.byName?`<div class="mut">Entered by ${esc(d.byName)}${d.editedBy&&d.editedBy!==d.byName?` · edited by ${esc(d.editedBy)}`:""}</div>`:""}${q?`<div>${q}</div>`:""}
    <div>${c?`<span class="tag">Contract ${esc(c.no)}</span>`:`<span class="tag">Uncontracted</span>`}${v!=null?` $${fmt(adjP(d))}/t · ${money(v)}`:""}</div>
    ${owner()&&c&&tdays(c)!=null?(d.paid?`<div class="mut">Paid ✓ <button class="x" data-up="${d.id}">Undo</button></div>`:(()=>{const x=dueOf(d.date,tdays(c),c.basis==="eow");return `<div>Payment due ${dfmt(x)} <span class="${dleft(x)<0?"err":""}">(${clock(x)})</span></div>`})()):""}
    <div class="row" style="margin-top:2px"><button class="x" data-e="${d.id}">Edit</button>${owner()?`<button class="x own" data-x="${d.id}">Delete</button>`:""}</div></div>`}).join(""):`<p class="mut">No loads yet.</p>`;
@@ -368,8 +401,8 @@ function renderTot(){
   $("#s_base").value=S.oilBase;$("#s_rate").value=S.oilRate;$("#s_week").value=S.weekEnd;}
 $("#saveSet").onclick=async()=>{try{await db.doc("settings/main").set({oilBase:num("#s_base")??42,oilRate:num("#s_rate")??1.5,weekEnd:Number($("#s_week").value)});status("Settings saved.")}catch(e){status("Could not save settings.",true)}};
 $("#csv").onclick=async()=>{if(!dl){status("Download is not available in this view.",true);return}
-  const h=["ngr","date","crop","storage","site","docket","rego","paddock","grade","net_t","clean_t","protein","screenings","oil","admix","moisture","test_weight","contract","price","adj_price","value","entered_by"],q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const rows=D.map(d=>{const c=C.find(x=>x.id===d.cid);return [d.ngr||"",d.date,d.crop,d.store,d.site,d.docket,d.rego,d.paddock,d.grade,d.t,cleanT(d).toFixed(3),d.prot,d.scr,d.oil,d.adm,d.moist,d.tw,c?c.no:"",P["d_"+d.id],adjP(d)?.toFixed(2),val(d)?.toFixed(0),d.byName].map(q).join(",")});
+  const h=["ngr","farm","date","crop","storage","site","docket","rego","paddock","grade","net_t","clean_t","protein","screenings","oil","admix","moisture","test_weight","contract","price","adj_price","value","entered_by"],q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const rows=D.map(d=>{const c=C.find(x=>x.id===d.cid);return [d.ngr||"",d.farm||"",d.date,d.crop,d.store,d.site,d.docket,d.rego,d.paddock,d.grade,d.t,cleanT(d).toFixed(3),d.prot,d.scr,d.oil,d.adm,d.moist,d.tw,c?c.no:"",P["d_"+d.id],adjP(d)?.toFixed(2),val(d)?.toFixed(0),d.byName].map(q).join(",")});
   try{await dl.save({filename:"grain-deliveries.csv",data:[h.join(","),...rows].join("\n")})}catch(e){}};
 /* out loads: grain taken from own silos / bags */
 const onFarm=d=>!/receival/i.test(d.store||"");
@@ -404,6 +437,7 @@ $("#o_save").onclick=async()=>{const s=stock().find(x=>x.k===$("#o_src").value),
   if(!db){status("Saving is not available in this view.",true);return}
   const ongr=s.ngr||null;
   try{await db.collection("outloads").doc().set({ngr:ongr,date,crop:s.crop,store:s.store,site:s.site,t,dest:$("#o_dest").value.trim()||null,docket:$("#o_docket").value.trim(),rego:$("#o_rego").value.trim().toUpperCase(),ts:Date.now(),by:myId,byName:nm});
+   rememberRego($("#o_rego").value);
    $("#o_toast").textContent=`Saved ✓ ${fmt(t)} t ${s.crop} out of ${s.site||s.store}`;status("");$("#o_t").value="";$("#o_docket").value="";outPrev()}
   catch(e){status("Could not save ("+(e.code||"error")+"). Family logins are view only.",true)}};
 $("#o_list").onclick=async e=>{const b=e.target.closest("button");if(!b||!b.dataset.ox)return;
@@ -433,7 +467,7 @@ $("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$
    const r=await sample.json(`This is a photo of an Australian grain receival docket or weighbridge ticket. Extract the fields below and reply with JSON only, no other text. Use null for anything not clearly visible; never guess.
 {"date":"YYYY-MM-DD","crop":"Wheat|Canola|Barley|Faba Beans","docket":"docket or ticket number","rego":"truck registration","site":"receival site name","net_tonnes":number (net weight in tonnes; convert kg to tonnes),"protein":number,"screenings":number,"oil":number,"admixture":number (percent; may be labelled impurities or admix),"moisture":number,"test_weight":number (kg/hl; may be labelled TWT, TW or test wt),"grade":"string","contract_no":"string (the contract or order number, may be labelled contract, order, PO or delivery order no.)"}`,{images:[blob],modelTier:"default"});
    if(r.date)$("#f_date").value=r.date;if(CROPS.includes(r.crop))setCrop(r.crop);if(r.grade&&(L.grades[$("#f_crop").value]||[]).includes(r.grade))setGrade(r.grade);
-   if(r.docket)$("#f_docket").value=r.docket;if(r.rego)$("#f_rego").value=String(r.rego).toUpperCase();if(r.net_tonnes!=null)$("#f_t").value=r.net_tonnes;
+   if(r.docket)$("#f_docket").value=r.docket;if(r.rego)setRego($("#f_rego"),String(r.rego).toUpperCase());if(r.net_tonnes!=null)$("#f_t").value=r.net_tonnes;
    if(r.protein!=null)$("#f_prot").value=r.protein;if(r.screenings!=null)$("#f_scr").value=r.screenings;if(r.oil!=null)$("#f_oil").value=r.oil;if(r.admixture!=null)$("#f_adm").value=r.admixture;if(r.moisture!=null)$("#f_moist").value=r.moisture;if(r.test_weight!=null)$("#f_tw").value=r.test_weight;
    let cmsg="";if(r.contract_no){const nn=v=>String(v).toLowerCase().replace(/[^a-z0-9]/g,""),c=C.find(x=>nn(x.no)===nn(r.contract_no));if(!c)cmsg=` Contract / order no. on docket: ${r.contract_no} (not in your contracts).`;if(c){if(c.crop!==$("#f_crop").value)setCrop(c.crop);if(c.ngr)ngrOpts($("#f_ngr"),c.ngr);conOptions();$("#f_con").value=c.id;cmsg=` Contract / order no. ${c.no} selected.`;const v=P["c_"+c.id];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v}}
    preview();m.textContent="Docket read. Please check every field against the paper docket before saving."+(r.grade?` Grade on docket: ${r.grade}.`:"")+cmsg+(r.moisture!=null&&!vis("#l_moist")?` Moisture: ${r.moisture}%.`:"")+(r.site?` Site on docket: ${r.site}.`:"")}
@@ -457,9 +491,10 @@ setCrop("Wheat");setSS(L.stores[0],"");mode();
   db.collection("outloads").onSnapshot(s=>{O=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.collection("contracts").onSnapshot(s=>{C=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.doc("settings/main").onSnapshot(s=>{if(s.exists)S={...S,...s.data()};renderAll()},()=>{});
+  db.doc("settings/farms").onSnapshot(s=>{FM=s.exists&&Array.isArray(s.data().list)?s.data().list:[];fillNgr();setPad(curPad)},()=>{});
   db.doc("settings/padngr").onSnapshot(s=>{PN=s.exists&&s.data().map?s.data().map:{};fillNgr()},()=>{});
   db.doc("settings/ngrs").onSnapshot(s=>{NG=s.exists&&Array.isArray(s.data().list)?s.data().list:[];fillNgr();renderAll()},()=>{});
-  db.doc("lists/main").onSnapshot(s=>{if(s.exists){const x=JSON.parse(JSON.stringify(s.data()));L={pcrops:x.pcrops||{},paddocks:x.paddocks||[],stores:x.stores||[...DEF],sites:x.sites||{},grades:x.grades||JSON.parse(JSON.stringify(GR))};fillSelects();renderAll()}},()=>{});
+  db.doc("lists/main").onSnapshot(s=>{if(s.exists){const x=JSON.parse(JSON.stringify(s.data()));L={regos:x.regos||[],pfarm:x.pfarm||{},pcrops:x.pcrops||{},paddocks:x.paddocks||[],stores:x.stores||[...DEF],sites:x.sites||{},grades:x.grades||JSON.parse(JSON.stringify(GR))};fillSelects();renderAll()}},()=>{});
   if(admin)db.collection("pricing").onSnapshot(s=>{P={};s.docs.forEach(x=>P[x.id]=x.data().v);if(owner()&&!editD&&!$("#f_price").value){const lp=lastPrice($("#f_crop").value);if(lp!=null)$("#f_price").value=lp}renderAll()},()=>{});
 })();
 </script></body></html>

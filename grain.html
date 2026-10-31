@@ -45,6 +45,9 @@ label.need input,label.need select{border:3px solid var(--bad);background:#fde8e
 .bigsave{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:60;background:#2e7d32;color:#fff;padding:24px 30px;border-radius:18px;font-size:26px;font-weight:800;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);width:min(420px,88vw);line-height:1.3}
 .bigsave small{display:block;font-size:17px;font-weight:600;margin-top:6px;opacity:.95}
 @keyframes popin{from{transform:translate(-50%,-50%) scale(.8);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}.bigsave{animation:popin .18s ease-out}
+.flagx{display:inline-block;background:#c62828;color:#fff;border-radius:12px;padding:3px 10px;font-weight:800;font-size:14px;margin:4px 0}
+.card.flagged{border:3px solid #c62828}
+.tabs .cnt{display:inline-block;background:#c62828;color:#fff;border-radius:10px;padding:0 7px;font-size:13px;margin-left:5px;line-height:20px}
 .msg{padding:9px;border-radius:8px;margin:8px 0;font-size:14px;background:var(--card);border:1px solid var(--bd)}.err{color:var(--bad)}.ok{color:var(--ok);font-weight:700}
 .hide{display:none}button.x{background:none;border:0;color:var(--ac);padding:6px 10px;min-height:44px;font-weight:600}
 body.staff .own{display:none!important}
@@ -213,6 +216,13 @@ function need(ids,msg){clearNeed();let first=null;[].concat(ids).forEach(id=>{co
 function bigSaved(main,sub){document.querySelector(".bigsave")?.remove();const b=document.createElement("div");b.className="bigsave";b.setAttribute("role","status");
   b.innerHTML=`✓ ${esc(main)}${sub?`<small>${esc(sub)}</small>`:""}`;b.onclick=()=>b.remove();document.body.appendChild(b);
   try{navigator.vibrate&&navigator.vibrate([60,40,60])}catch(e){}setTimeout(()=>b.remove(),3500)}
+/* loads at a receival site with no docket or quality */
+function missingInfo(x,isOut){if(!isOut&&!/receival/i.test(x.store||""))return [];const m=[];if(!x.docket)m.push("docket no.");
+  if(x.crop==="Wheat"||x.crop==="Barley"){if(x.prot==null)m.push("protein %");if(!x.grade)m.push("grade")}
+  else if(x.crop==="Canola"){if(x.oil==null)m.push("oil %");if(x.adm==null)m.push("admixture %")}return m}
+const flagHtml=m=>m.length?`<div><span class="flagx">⚠ Needs ${esc(m.join(", "))}</span></div>`:"";
+function flagCounts(){const nd=D.filter(d=>missingInfo(d).length).length,no=O.filter(o=>missingInfo(o,true).length).length;
+  [["del","Loads",nd],["out","Out load",no]].forEach(([t,l,n])=>{const b=document.querySelector(`.tabs [data-tab="${t}"]`);if(b)b.innerHTML=esc(l)+(n?`<span class="cnt" title="${n} need docket or quality">⚠ ${n}</span>`:"")})}
 function status(t,err){const e=$("#status");e.textContent=t;e.className="msg"+(err?" err":"")+(t?"":" hide")}
 function mode(){document.body.classList.toggle("staff",!owner());$("#who").textContent=($("#f_name").value?$("#f_name").value+" · ":"")+(owner()?"Owner":"Staff");$("#pvBar").classList.toggle("hide",!(admin&&pv));fillSelects();preview();renderAll()}
 function go(t){document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x.dataset.tab===t));["add","del","con","out","tot"].forEach(k=>$("#t-"+k).classList.toggle("hide",k!==t))}
@@ -367,10 +377,10 @@ $("#saveDel").onclick=async()=>{const d=readDel();
 
 /* loads list */
 function renderDel(){
-  const rows=[...D].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).slice(0,owner()?500:60);
+  const rows=[...D].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).filter((d,i)=>i<(owner()?500:60)||missingInfo(d).length);
   $("#delList").innerHTML=rows.length?rows.map(d=>{const c=C.find(x=>x.id===d.cid),v=owner()?val(d):null;
    const q=[d.grade?`Grade ${esc(d.grade)}`:"",d.prot!=null?`Protein ${fmt(d.prot,1)}%`:"",d.scr!=null?`Screenings ${fmt(d.scr,1)}%`:"",d.oil!=null?`Oil ${fmt(d.oil,1)}%`:"",d.adm!=null?`Admix ${fmt(d.adm)}%`:"",d.moist!=null?`Moisture ${fmt(d.moist,1)}%`:"",d.tw!=null?`Test wt ${fmt(d.tw,1)} kg/hl`:""].filter(Boolean).join(" · ");
-   return `<div class="card cr-${d.crop.replace(/\s/g,"")}"><div class="it"><b>${esc(d.date)} · ${esc(d.crop)}</b><b>${fmt(d.t)} t${d.crop==="Canola"&&d.adm?` <span class="mut">(${fmt(cleanT(d))} clean)</span>`:""}</b></div>
+   const mi=missingInfo(d);return `<div class="card cr-${d.crop.replace(/\s/g,"")}${mi.length?" flagged":""}">${flagHtml(mi)}<div class="it"><b>${esc(d.date)} · ${esc(d.crop)}</b><b>${fmt(d.t)} t${d.crop==="Canola"&&d.adm?` <span class="mut">(${fmt(cleanT(d))} clean)</span>`:""}</b></div>
    <div class="mut">${esc(d.store)}${d.site?" – "+esc(d.site):""}${d.docket?" · Docket "+esc(d.docket):""}${d.rego?" · Rego "+esc(d.rego):""}${d.farm?" · "+esc(d.farm):""}${d.paddock?" · Paddock "+esc(d.paddock):""}${d.ngr?" · NGR "+esc(ngrLbl(d.ngr)):""}</div>${owner()&&d.byName?`<div class="mut">Entered by ${esc(d.byName)}${d.editedBy&&d.editedBy!==d.byName?` · edited by ${esc(d.editedBy)}`:""}</div>`:""}${q?`<div>${q}</div>`:""}
    <div>${c?`<span class="tag">Contract ${esc(c.no)}</span>`:`<span class="tag">Uncontracted</span>`}${v!=null?` $${fmt(adjP(d))}/t · ${money(v)}`:""}</div>
    ${owner()&&c&&tdays(c)!=null?(d.paid?`<div class="mut">Paid ✓ <button class="x" data-up="${d.id}">Undo</button></div>`:(()=>{const x=dueOf(d.date,tdays(c),c.basis==="eow");return `<div>Payment due ${dfmt(x)} <span class="${dleft(x)<0?"err":""}">(${clock(x)})</span></div>`})()):""}
@@ -462,8 +472,8 @@ function renderOut(){const st=stock(),eo=editO&&O.find(x=>x.id===editO),has=st.f
   $("#o_dest").innerHTML=`<option value="">— select receival site —</option>`+ds.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");if(dc&&!ds.includes(dc))$("#o_dest").insertAdjacentHTML("beforeend",`<option value="${esc(dc)}">${esc(dc)}</option>`);$("#o_dest").value=dc;oFields();
   const rows=st.filter(s=>s.inn>0);
   $("#o_stock").innerHTML=stockCard(rows);
-  const r=[...O].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).slice(0,40);
-  $("#o_list").innerHTML=r.length?`<span class="big">Recent out loads</span>`+r.map(o=>`<div class="card cr-${esc(String(o.crop).replace(/\s/g,""))}"><div class="it"><b>${esc(o.date)} · ${esc(o.crop)}</b><b>${fmt(o.t)} t</b></div><div class="mut">From ${sname(o)}${o.dest?" → "+esc(o.dest):""}${o.docket?" · Docket "+esc(o.docket):""}${o.rego?" · Rego "+esc(o.rego):""}${o.ngr?" · NGR "+esc(ngrLbl(o.ngr)):""}</div>${oq(o)?`<div>${oq(o)}</div>`:`<div class="mut">No docket quality yet. Tap Edit to scan or enter it.</div>`}${owner()?`<div>${(()=>{const c=C.find(x=>x.id===o.cid);return c?`<span class="tag">Contract ${esc(c.no)}</span>${o.paid?" Paid ✓":""}`:`<span class="tag">Uncontracted</span>`})()}</div>`:""}${o.byName?`<div class="mut">Entered by ${esc(o.byName)}${o.editedBy&&o.editedBy!==o.byName?` · edited by ${esc(o.editedBy)}`:""}</div>`:""}<div class="row" style="margin-top:2px"><button class="x" data-oe="${o.id}">Edit</button>${owner()?`<button class="x" data-ox="${o.id}">Delete</button>`:""}</div></div>`).join(""):"";
+  const r=[...O].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).filter((o,i)=>i<40||missingInfo(o,true).length);
+  $("#o_list").innerHTML=r.length?`<span class="big">Recent out loads</span>`+r.map(o=>`<div class="card cr-${esc(String(o.crop).replace(/\s/g,""))}${missingInfo(o,true).length?" flagged":""}">${flagHtml(missingInfo(o,true))}<div class="it"><b>${esc(o.date)} · ${esc(o.crop)}</b><b>${fmt(o.t)} t</b></div><div class="mut">From ${sname(o)}${o.dest?" → "+esc(o.dest):""}${o.docket?" · Docket "+esc(o.docket):""}${o.rego?" · Rego "+esc(o.rego):""}${o.ngr?" · NGR "+esc(ngrLbl(o.ngr)):""}</div>${oq(o)?`<div>${oq(o)}</div>`:`<div class="mut">No docket quality yet. Tap Edit to scan or enter it.</div>`}${owner()?`<div>${(()=>{const c=C.find(x=>x.id===o.cid);return c?`<span class="tag">Contract ${esc(c.no)}</span>${o.paid?" Paid ✓":""}`:`<span class="tag">Uncontracted</span>`})()}</div>`:""}${o.byName?`<div class="mut">Entered by ${esc(o.byName)}${o.editedBy&&o.editedBy!==o.byName?` · edited by ${esc(o.editedBy)}`:""}</div>`:""}<div class="row" style="margin-top:2px"><button class="x" data-oe="${o.id}">Edit</button>${owner()?`<button class="x" data-ox="${o.id}">Delete</button>`:""}</div></div>`).join(""):"";
   outPrev()}
 const oq=o=>[o.grade?`Grade ${esc(o.grade)}`:"",o.prot!=null?`Protein ${fmt(o.prot,1)}%`:"",o.scr!=null?`Screenings ${fmt(o.scr,1)}%`:"",o.oil!=null?`Oil ${fmt(o.oil,1)}%`:"",o.adm!=null?`Admix ${fmt(o.adm)}%`:"",o.moist!=null?`Moisture ${fmt(o.moist,1)}%`:"",o.tw!=null?`Test wt ${fmt(o.tw,1)}`:""].filter(Boolean).join(" · ");
 const oSrc=()=>stock().find(x=>x.k===$("#o_src").value);
@@ -517,7 +527,7 @@ function renderPad(){renderStockTot();const m={},D=totRows();D.forEach(d=>{const
   const rows=Object.entries(m).sort((a,b)=>(a[0]==="No paddock")-(b[0]==="No paddock")||a[0].localeCompare(b[0]));
   setPad(curPad);
   $("#padTot").innerHTML=rows.length?`<div class="card"><span class="big">By paddock</span><div class="wrap"><table><tr><th>Paddock</th><th>Loads</th><th>Tonnes</th></tr>`+rows.map(([k,x])=>`<tr><td>${esc(k)}<div class="mut">${Object.entries(x.c).map(([c,v])=>`${esc(c)} ${fmt(v)} t`).join(" · ")}</div></td><td>${x.n}</td><td class="tn">${fmt(Object.values(x.c).reduce((a,v)=>a+v,0))}</td></tr>`).join("")+`</table></div><p class="mut">Harvested tonnes by paddock (canola after admixture). Loads with no paddock entered are grouped separately.</p></div>`:""}
-function renderAll(){fillNgr();conOptions();renderDel();renderCon();renderTot();renderPad();renderOut();renderLists();preview()}
+function renderAll(){flagCounts();fillNgr();conOptions();renderDel();renderCon();renderTot();renderPad();renderOut();renderLists();preview()}
 
 /* docket scan */
 const DOCKET_PROMPT=`This is a photo of an Australian grain receival docket or weighbridge ticket. Extract the fields below and reply with JSON only, no other text. Use null for anything not clearly visible; never guess.

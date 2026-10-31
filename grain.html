@@ -39,6 +39,12 @@ button.lg{width:100%;min-height:62px;font-size:20px}
 .bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--ok)}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 4px;text-align:right;border-bottom:1px solid var(--bd)}th:first-child,td:first-child{text-align:left}
 .wrap{overflow-x:auto}.tag{display:inline-block;padding:2px 8px;border:1px solid var(--bd);border-radius:10px;font-size:12px;color:var(--mut);margin:2px}
+label.need{color:var(--bad);font-weight:800;font-size:17px}
+label.need input,label.need select{border:3px solid var(--bad);background:#fde8e8;color:#2a2a24}
+.needmsg{display:block;color:var(--bad);font-size:19px;font-weight:800;margin-top:4px;line-height:1.25}
+.bigsave{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:60;background:#2e7d32;color:#fff;padding:24px 30px;border-radius:18px;font-size:26px;font-weight:800;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);width:min(420px,88vw);line-height:1.3}
+.bigsave small{display:block;font-size:17px;font-weight:600;margin-top:6px;opacity:.95}
+@keyframes popin{from{transform:translate(-50%,-50%) scale(.8);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}.bigsave{animation:popin .18s ease-out}
 .msg{padding:9px;border-radius:8px;margin:8px 0;font-size:14px;background:var(--card);border:1px solid var(--bd)}.err{color:var(--bad)}.ok{color:var(--ok);font-weight:700}
 .hide{display:none}button.x{background:none;border:0;color:var(--ac);padding:6px 10px;min-height:44px;font-weight:600}
 body.staff .own{display:none!important}
@@ -186,6 +192,14 @@ const cleanT=d=>d.crop==="Canola"?d.t*(1-(d.adm||0)/100):d.t;
 const adjP=d=>{const p=P["d_"+d.id];return p==null?null:adj(d.crop,d.oil,p)};
 const val=d=>{const p=adjP(d);return p==null?null:p*cleanT(d)};
 const delivered=c=>D.filter(d=>d.cid===c.id).reduce((a,d)=>a+cleanT(d),0);
+function clearNeed(){document.querySelectorAll("label.need").forEach(l=>{l.classList.remove("need");l.querySelector(".needmsg")?.remove()})}
+function need(ids,msg){clearNeed();let first=null;[].concat(ids).forEach(id=>{const el=$("#"+id),l=el&&el.closest("label");if(!l||l.classList.contains("hide"))return;l.classList.add("need");
+  if(!first){first=l;const m=document.createElement("span");m.className="needmsg";m.textContent="⚠ "+msg;l.appendChild(m)}});
+  status(msg,true);(first||$("#status")).scrollIntoView({behavior:"smooth",block:"center"});try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}
+["input","change"].forEach(ev=>document.addEventListener(ev,e=>{const l=e.target.closest&&e.target.closest("label.need");if(l){l.classList.remove("need");l.querySelector(".needmsg")?.remove()}}));
+function bigSaved(main,sub){document.querySelector(".bigsave")?.remove();const b=document.createElement("div");b.className="bigsave";b.setAttribute("role","status");
+  b.innerHTML=`✓ ${esc(main)}${sub?`<small>${esc(sub)}</small>`:""}`;b.onclick=()=>b.remove();document.body.appendChild(b);
+  try{navigator.vibrate&&navigator.vibrate([60,40,60])}catch(e){}setTimeout(()=>b.remove(),3500)}
 function status(t,err){const e=$("#status");e.textContent=t;e.className="msg"+(err?" err":"")+(t?"":" hide")}
 function mode(){document.body.classList.toggle("staff",!owner());$("#who").textContent=($("#f_name").value?$("#f_name").value+" · ":"")+(owner()?"Owner":"Staff");$("#pvBar").classList.toggle("hide",!(admin&&pv));fillSelects();preview();renderAll()}
 function go(t){document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x.dataset.tab===t));["add","del","con","out","tot"].forEach(k=>$("#t-"+k).classList.toggle("hide",k!==t))}
@@ -317,20 +331,24 @@ $("#again").onclick=()=>{const l=lastLoad();if(!l){status("No earlier load to co
 function endEdit(){editD=null;$("#fTitle").textContent="Add load";$("#saveDel").textContent="Save load";$("#cancelDel").classList.add("hide")}
 $("#cancelDel").onclick=()=>{endEdit();$("#f_docket").value="";$("#f_t").value=""};
 $("#saveDel").onclick=async()=>{const d=readDel();
-  if(!d.date||!d.t||d.t<=0){status("Enter the tonnes.",true);return}
-  if(NG.length&&!d.ngr){status("Choose the NGR this load is delivered under.",true);return}
-  {const pn=padNgr(d.paddock),wk="n|"+d.paddock+"|"+d.ngr;if(pn&&d.ngr&&pn!==d.ngr&&padWarn!==wk){padWarn=wk;status(`Paddock ${d.paddock}${pfarm(d.paddock)?" ("+pfarm(d.paddock)+")":""} is linked to NGR ${ngrLbl(pn)}, but this load is NGR ${ngrLbl(d.ngr)}. Tap Save again if that is right.`,true);return}}
-  {const c=C.find(x=>x.id===d.cid);if(c&&c.ngr&&d.ngr&&c.ngr!==d.ngr){status(`Contract ${c.no} is under NGR ${ngrLbl(c.ngr)}, but this load is NGR ${ngrLbl(d.ngr)}. Change one of them.`,true);return}}
-  if(!d.paddock){status("Choose the paddock this load came from.",true);return}
-  {const pc=padCrop(d.paddock,d.date),wk=d.paddock+"|"+d.crop+"|"+yrOf(d.date);if(pc&&pc!==d.crop&&padWarn!==wk){padWarn=wk;status(`${d.paddock} is ${pc} this year, but this load is ${d.crop}. Tap Save again if that is right.`,true);return}}
+  if(!d.date){need("f_date","Enter the date.");return}
+  if(!d.t||d.t<=0){need("f_t","Enter the tonnes.");return}
+  if(NG.length&&!d.ngr){need("f_ngr","Choose the NGR this load is delivered under.");return}
+  {const pn=padNgr(d.paddock),wk="n|"+d.paddock+"|"+d.ngr;if(pn&&d.ngr&&pn!==d.ngr&&padWarn!==wk){padWarn=wk;need("f_ngr",`Paddock ${d.paddock}${pfarm(d.paddock)?" ("+pfarm(d.paddock)+")":""} is linked to NGR ${ngrLbl(pn)}, but this load is NGR ${ngrLbl(d.ngr)}. Tap Save again if that is right.`);return}}
+  {const c=C.find(x=>x.id===d.cid);if(c&&c.ngr&&d.ngr&&c.ngr!==d.ngr){need(["f_con","f_ngr"],`Contract ${c.no} is under NGR ${ngrLbl(c.ngr)}, but this load is NGR ${ngrLbl(d.ngr)}. Change one of them.`);return}}
+  if(!d.paddock){need("f_paddock","Choose the paddock this load came from.");return}
+  {const pc=padCrop(d.paddock,d.date),wk=d.paddock+"|"+d.crop+"|"+yrOf(d.date);if(pc&&pc!==d.crop&&padWarn!==wk){padWarn=wk;need("f_paddock",`${d.paddock} is ${pc} this year, but this load is ${d.crop}. Tap Save again if that is right.`);return}}
   const nm=$("#f_name").value.trim();if(!nm){status("Your login has no name. Sign out and back in.",true);return}
-  if(/receival/i.test(d.store)){const miss=d.crop==="Canola"?(d.oil==null||d.adm==null?"oil % and admixture %":""):(d.crop==="Wheat"||d.crop==="Barley")?(d.prot==null||!d.grade?"protein % and grade":""):"";if(miss){status(`Receival site loads need ${miss} entered with the tonnes.`,true);return}}
+  if(/receival/i.test(d.store)){const m=[];if(d.crop==="Canola"){if(d.oil==null)m.push(["f_oil","oil %"]);if(d.adm==null)m.push(["f_adm","admixture %"])}
+    else if(d.crop==="Wheat"||d.crop==="Barley"){if(d.prot==null)m.push(["f_prot","protein %"]);if(!d.grade)m.push(["f_grade","grade"])}
+    if(m.length){need(m.map(x=>x[0]),`Receival site loads need ${m.map(x=>x[1]).join(" and ")} entered.`);return}}
   if(!db){status("Saving is not available in this view.",true);return}
   try{let id=editD;const old=editD&&D.find(x=>x.id===editD);
    if(old){d.ts=old.ts;d.by=old.by;d.byName=old.byName||nm;d.editedBy=nm;if(old.paid)d.paid=true;await db.doc("deliveries/"+id).set(d)}else{d.ts=Date.now();d.by=myId;d.byName=nm;const r=db.collection("deliveries").doc();id=r.id;await r.set(d)}
    if(owner()){const p=num("#f_price"),pr=db.doc("pricing/d_"+id);if(p!=null)await pr.set({v:p});else if(old)await pr.delete().catch(()=>{})}
    rememberRego(d.rego);
-   $("#toast").textContent=`Saved ✓ ${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}`;status("");
+   $("#toast").textContent=`Saved ✓ ${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}`;status("");clearNeed();
+   bigSaved(old?"Load updated":"Load saved",`${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}${d.paddock?" · "+d.paddock:""}`);
    endEdit();$("#f_docket").value="";$("#f_t").value="";$("#f_prot").value="";$("#f_scr").value="";$("#f_oil").value="";$("#f_adm").value="";$("#f_moist").value="";$("#f_tw").value="";setGrade("");setPad("");preview();$("#f_t").focus()}
   catch(e){status("Could not save ("+(e.code||"error")+"). Family logins are view only.",true)}};
 
@@ -431,14 +449,15 @@ function outPrev(){const s=stock().find(x=>x.k===$("#o_src").value),t=num("#o_t"
 $("#o_src").onchange=outPrev;$("#o_t").oninput=outPrev;
 $("#o_save").onclick=async()=>{const s=stock().find(x=>x.k===$("#o_src").value),t=num("#o_t"),date=$("#o_date").value,nm=$("#f_name").value.trim();
   if(!nm){status("Your login has no name. Sign out and back in.",true);return}
-  if(!s){status("Choose the silo or bag first.",true);return}
-  if(!t||t<=0||!date){status("Enter the tonnes and date.",true);return}
-  if(t>s.left+0.005){status(`Only ${fmt(s.left)} t left in ${s.site||s.store}.`,true);return}
+  if(!s){need("o_src","Choose the silo or bag first.");return}
+  if(!t||t<=0){need("o_t","Enter the tonnes.");return}
+  if(!date){need("o_date","Enter the date.");return}
+  if(t>s.left+0.005){need("o_t",`Only ${fmt(s.left)} t left in ${s.site||s.store}.`);return}
   if(!db){status("Saving is not available in this view.",true);return}
   const ongr=s.ngr||null;
   try{await db.collection("outloads").doc().set({ngr:ongr,date,crop:s.crop,store:s.store,site:s.site,t,dest:$("#o_dest").value.trim()||null,docket:$("#o_docket").value.trim(),rego:$("#o_rego").value.trim().toUpperCase(),ts:Date.now(),by:myId,byName:nm});
    rememberRego($("#o_rego").value);
-   $("#o_toast").textContent=`Saved ✓ ${fmt(t)} t ${s.crop} out of ${s.site||s.store}`;status("");$("#o_t").value="";$("#o_docket").value="";outPrev()}
+   $("#o_toast").textContent=`Saved ✓ ${fmt(t)} t ${s.crop} out of ${s.site||s.store}`;clearNeed();bigSaved("Out load saved",`${fmt(t)} t ${s.crop} out of ${s.site||s.store}`);status("");$("#o_t").value="";$("#o_docket").value="";outPrev()}
   catch(e){status("Could not save ("+(e.code||"error")+"). Family logins are view only.",true)}};
 $("#o_list").onclick=async e=>{const b=e.target.closest("button");if(!b||!b.dataset.ox)return;
   if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}

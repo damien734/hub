@@ -67,8 +67,8 @@ body.staff .own{display:none!important}
 
 <section id="t-add">
  <div class="card">
-  <div class="it"><span class="big" id="fTitle">Add load</span><button class="s hide" id="scanBtn">📷 Scan docket</button></div>
-  <input type="file" id="scanIn" accept="image/*" class="hide">
+  <div class="it"><span class="big" id="fTitle">Add load</span><span class="row hide" id="scanBox" style="margin:0"><button class="s" id="scanCamBtn">📷 Camera</button><button class="s" id="scanBtn">🖼 Photo</button></span></div>
+  <input type="file" id="scanIn" accept="image/*" class="hide"><input type="file" id="scanCamIn" accept="image/*" capture="environment" class="hide">
   <div id="scanMsg" class="msg hide"></div>
   <input type="hidden" id="f_crop" value="Wheat">
   <div id="cropBtns" class="seg"></div>
@@ -128,8 +128,8 @@ body.staff .own{display:none!important}
 
 <section id="t-out" class="hide">
  <div class="card">
-  <div class="it"><span class="big" id="oTitle">Out load</span><button class="s hide" id="oScanBtn">📷 Scan docket</button></div>
-  <input type="file" id="oScanIn" accept="image/*" class="hide">
+  <div class="it"><span class="big" id="oTitle">Out load</span><span class="row hide" id="oScanBox" style="margin:0"><button class="s" id="oScanCamBtn">📷 Camera</button><button class="s" id="oScanBtn">🖼 Photo</button></span></div>
+  <input type="file" id="oScanIn" accept="image/*" class="hide"><input type="file" id="oScanCamIn" accept="image/*" capture="environment" class="hide">
   <div id="oScanMsg" class="msg hide"></div>
   <div class="mut">Grain leaving your own silos or grain bags, for example to a receival site.</div>
   <div class="grid">
@@ -532,11 +532,15 @@ function renderAll(){flagCounts();fillNgr();conOptions();renderDel();renderCon()
 /* docket scan */
 const DOCKET_PROMPT=`This is a photo of an Australian grain receival docket or weighbridge ticket. Extract the fields below and reply with JSON only, no other text. Use null for anything not clearly visible; never guess.
 {"date":"YYYY-MM-DD","crop":"Wheat|Canola|Barley|Faba Beans","docket":"docket or ticket number","rego":"truck registration","site":"receival site name","net_tonnes":number (net weight in tonnes; convert kg to tonnes),"protein":number,"screenings":number,"oil":number,"admixture":number (percent; may be labelled impurities or admix),"moisture":number,"test_weight":number (kg/hl; may be labelled TWT, TW or test wt),"grade":"string","contract_no":"string (the contract or order number, may be labelled contract, order, PO or delivery order no.)"}`;
-async function readDocket(f){const bm=await createImageBitmap(f),k=Math.min(1,1600/Math.max(bm.width,bm.height)),c=document.createElement("canvas");
-  c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);c.getContext("2d").drawImage(bm,0,0,c.width,c.height);
-  const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",.85));return await sample.json(DOCKET_PROMPT,{images:[blob]})}
+async function readDocket(f){let blob=f;
+  try{const bm=await createImageBitmap(f),k=Math.min(1,1600/Math.max(bm.width,bm.height)),c=document.createElement("canvas");
+   c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);c.getContext("2d").drawImage(bm,0,0,c.width,c.height);
+   blob=await new Promise(r=>c.toBlob(r,"image/jpeg",.85))||f}catch(e){console.warn("Could not resize photo, sending original",e)}
+  return await sample.json(DOCKET_PROMPT,{images:[blob]})}
 const nnum=v=>String(v).toLowerCase().replace(/[^a-z0-9]/g,"");
-$("#scanBtn").onclick=()=>$("#scanIn").click();
+$("#scanBtn").onclick=()=>$("#scanIn").click();$("#scanCamBtn").onclick=()=>$("#scanCamIn").click();$("#oScanCamBtn").onclick=()=>$("#oScanCamIn").click();
+const scanErr=er=>{console.error("Docket scan failed",er);const why=String(er&&er.message||er||"").slice(0,300);
+  return "Could not read that docket"+(er&&er.code&&er.code!=="error"?` (${er.code})`:"")+". You can enter it by hand."+(why?` Details for Claude: ${why}`:"")};
 $("#oScanBtn").onclick=()=>$("#oScanIn").click();
 $("#oScanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$("#oScanMsg");m.className="msg";m.textContent="Reading docket…";
   try{const r=await readDocket(f),notes=[];
@@ -548,7 +552,7 @@ $("#oScanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=
    if(r.site){const opt=[...$("#o_dest").options].find(x=>x.value&&(nnum(x.value).includes(nnum(r.site))||nnum(r.site).includes(nnum(x.value))));if(opt)$("#o_dest").value=opt.value;else notes.push(`Site on docket: ${r.site} (not in your receival sites — add it on the Add screen).`)}
    if(r.contract_no&&owner()){const c=C.find(x=>nnum(x.no)===nnum(r.contract_no));if(c&&[...$("#o_con").options].some(x=>x.value===c.id)){$("#o_con").value=c.id;notes.push(`Contract ${c.no} selected.`)}else notes.push(`Contract / order no. on docket: ${r.contract_no}${c?" (doesn't match this crop or NGR)":" (not in your contracts)"}.`)}
    outPrev();m.textContent="Docket read. Check every field against the paper docket before saving. "+notes.join(" ")}
-  catch(er){m.className="msg err";m.textContent="Could not read that docket ("+(er.code||"error")+"). You can enter it by hand."}
+  catch(er){m.className="msg err";m.textContent=scanErr(er)}
   e.target.value=""};
 $("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$("#scanMsg");m.className="msg";m.textContent="Reading docket…";
   try{const r=await readDocket(f);
@@ -557,9 +561,10 @@ $("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$
    if(r.protein!=null)$("#f_prot").value=r.protein;if(r.screenings!=null)$("#f_scr").value=r.screenings;if(r.oil!=null)$("#f_oil").value=r.oil;if(r.admixture!=null)$("#f_adm").value=r.admixture;if(r.moisture!=null)$("#f_moist").value=r.moisture;if(r.test_weight!=null)$("#f_tw").value=r.test_weight;
    let cmsg="";if(r.contract_no){const c=C.find(x=>nnum(x.no)===nnum(r.contract_no));if(!c)cmsg=` Contract / order no. on docket: ${r.contract_no} (not in your contracts).`;if(c){if(c.crop!==$("#f_crop").value)setCrop(c.crop);if(c.ngr)ngrOpts($("#f_ngr"),c.ngr);conOptions();$("#f_con").value=c.id;cmsg=` Contract / order no. ${c.no} selected.`;const v=P["c_"+c.id];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v}}
    preview();m.textContent="Docket read. Please check every field against the paper docket before saving."+(r.grade?` Grade on docket: ${r.grade}.`:"")+cmsg+(r.moisture!=null&&!vis("#l_moist")?` Moisture: ${r.moisture}%.`:"")+(r.site?` Site on docket: ${r.site}.`:"")}
-  catch(er){m.className="msg err";m.textContent="Could not read that docket ("+(er.code||"error")+"). You can enter it by hand."}
+  catch(er){m.className="msg err";m.textContent=scanErr(er)}
   e.target.value=""};
 
+$("#scanCamIn").onchange=$("#scanIn").onchange;$("#oScanCamIn").onchange=$("#oScanIn").onchange;
 /* start */
 $("#f_date").value=today();$("#o_date").value=today();
 setCrop("Wheat");setSS(L.stores[0],"");mode();
@@ -569,7 +574,7 @@ setCrop("Wheat");setSS(L.stores[0],"");mode();
   db=makeDb("grain_");dl=downloads;
   $("#f_name").value=me.name||me.email||"";
   mode();
-  if(canWrite){getScanner().then(sc=>{if(sc){sample=sc;$("#scanBtn").classList.remove("hide");$("#oScanBtn").classList.remove("hide")}})}
+  if(canWrite){getScanner().then(sc=>{if(sc){sample=sc;$("#scanBox").classList.remove("hide");$("#oScanBox").classList.remove("hide")}})}
   if(!canWrite)status("You have view-only access. Ask Damo or Carissa to change you to Staff to add loads.",true);
   const er=e=>status("Could not load data ("+(e.code||"error")+").",true);
   db.collection("deliveries").onSnapshot(s=>{D=s.docs.map(x=>({id:x.id,...x.data()}));

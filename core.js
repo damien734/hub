@@ -112,14 +112,23 @@ export async function getScanner() {
     let res;
     try { res = await model.generateContent(parts); }
     catch (e) {
-      const msg = String(e?.message || e);
+      const msg = String(e?.message || e) + (e?.code ? " [" + e.code + "]" : "");
+      console.error("Gemini request failed", e);
       const err = new Error(msg);
       err.code = /429|quota|exhausted/i.test(msg) ? "rate_limited"
         : /app.?check|403|permission/i.test(msg) ? "not_granted" : "error";
       throw err;
     }
-    const text = res.response.text().trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-    return JSON.parse(text);
+    let text = "";
+    try { text = res.response.text(); }
+    catch (e) { const err = new Error("The scanner gave no answer (" + (e?.message || e) + ")"); err.code = "no_answer"; throw err; }
+    text = String(text).trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+    try { return JSON.parse(text); }
+    catch (e) {
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) { try { return JSON.parse(m[0]); } catch (e2) {} }
+      const err = new Error("Reply wasn't readable: " + text.slice(0, 160)); err.code = "bad_reply"; throw err;
+    }
   };
   return { json, limits: async () => ({ images: { mediaTypes: SCAN_TYPES, maxCount: 6 } }) };
 }

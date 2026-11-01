@@ -542,7 +542,7 @@ $("#scanBtn").onclick=()=>$("#scanIn").click();$("#scanCamBtn").onclick=()=>$("#
 const scanErr=er=>{console.error("Docket scan failed",er);const why=String(er&&er.message||er||"").slice(0,300);
   return "Could not read that docket"+(er&&er.code&&er.code!=="error"?` (${er.code})`:"")+". You can enter it by hand."+(why?` Details for Claude: ${why}`:"")};
 $("#oScanBtn").onclick=()=>$("#oScanIn").click();
-$("#oScanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$("#oScanMsg");m.className="msg";m.textContent="Reading docket…";
+$("#oScanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$("#oScanMsg");m.className="msg";m.textContent="Reading docket… this can take up to a minute if Google is busy.";
   try{const r=await readDocket(f),notes=[];
    if(!oSrc()){const st=stock().filter(x=>x.left>0.005&&(!r.crop||x.crop===r.crop));if(st.length===1){$("#o_src").value=st[0].k}else notes.push("Pick the silo or bag it came out of.")}
    oFields();const s=oSrc();if(s&&r.crop&&CROPS.includes(r.crop)&&r.crop!==s.crop)notes.push(`Docket says ${r.crop} but ${s.site||s.store} holds ${s.crop}. Check the silo or bag.`);
@@ -554,7 +554,7 @@ $("#oScanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=
    outPrev();m.textContent="Docket read. Check every field against the paper docket before saving. "+notes.join(" ")}
   catch(er){m.className="msg err";m.textContent=scanErr(er)}
   e.target.value=""};
-$("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$("#scanMsg");m.className="msg";m.textContent="Reading docket…";
+$("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$("#scanMsg");m.className="msg";m.textContent="Reading docket… this can take up to a minute if Google is busy.";
   try{const r=await readDocket(f);
    if(r.date)$("#f_date").value=r.date;if(CROPS.includes(r.crop))setCrop(r.crop);if(r.grade&&(L.grades[$("#f_crop").value]||[]).includes(r.grade))setGrade(r.grade);
    if(r.docket)$("#f_docket").value=r.docket;if(r.rego)setRego($("#f_rego"),String(r.rego).toUpperCase());if(r.net_tonnes!=null)$("#f_t").value=r.net_tonnes;

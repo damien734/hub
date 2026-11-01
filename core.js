@@ -91,33 +91,51 @@ const blobToBase64 = (b) => new Promise((ok, bad) => {
   r.onerror = () => bad(r.error);
   r.readAsDataURL(b);
 });
+// Models tried in order. Names from Firebase's supported-models list (Gemini Developer API).
+// gemini-3.5-flash is a stable model with a longer support window; the others are fallbacks
+// used when a model is busy ("high demand") or unavailable.
+const SCAN_MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"];
+const busyErr = (msg) => /\b(500|502|503|504|429)\b|high demand|overloaded|unavailable|try again later|exhausted|deadline/i.test(msg);
+const goneErr = (msg) => /\b404\b|not found|is not supported|no longer available/i.test(msg);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
 export async function getScanner() {
   if (!appCheckOn) return null;
-  let model;
+  let ai, getGenerativeModel;
   try {
-    const { getAI, getGenerativeModel, GoogleAIBackend } =
-      await import("https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js");
-    const ai = getAI(fb, { backend: new GoogleAIBackend() });
-    model = getGenerativeModel(ai, {
-      model: "gemini-3.8-flash",
-      generationConfig: { responseMimeType: "application/json", temperature: 0 },
-    });
+    const mod = await import("https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js");
+    getGenerativeModel = mod.getGenerativeModel;
+    ai = mod.getAI(fb, { backend: new mod.GoogleAIBackend() });
   } catch (e) { console.error("Scanner failed to load", e); return null; }
+  const models = {};
+  const modelFor = (name) => models[name] || (models[name] = getGenerativeModel(ai, {
+    model: name, generationConfig: { responseMimeType: "application/json", temperature: 0 },
+  }));
   const json = async (prompt, opts = {}) => {
     const parts = [prompt];
     const imgs = opts.images ? (Array.isArray(opts.images) ? opts.images : [opts.images]) : [];
     for (const img of imgs) {
       parts.push({ inlineData: { mimeType: img.type || "image/jpeg", data: await blobToBase64(img) } });
     }
-    let res;
-    try { res = await model.generateContent(parts); }
-    catch (e) {
-      const msg = String(e?.message || e) + (e?.code ? " [" + e.code + "]" : "");
-      console.error("Gemini request failed", e);
-      const err = new Error(msg);
-      err.code = /429|quota|exhausted/i.test(msg) ? "rate_limited"
-        : /app.?check|403|permission/i.test(msg) ? "not_granted" : "error";
-      throw err;
+    let res, lastMsg = "";
+    outer: for (const name of SCAN_MODELS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try { res = await modelFor(name).generateContent(parts); break outer; }
+        catch (e) {
+          lastMsg = String(e?.message || e) + (e?.code ? " [" + e.code + "]" : "");
+          console.warn("Gemini " + name + " attempt " + (attempt + 1) + " failed", e);
+          if (/app.?check|\b403\b|permission/i.test(lastMsg) && !busyErr(lastMsg)) {
+            const err = new Error(lastMsg); err.code = "not_granted"; throw err;
+          }
+          if (goneErr(lastMsg)) break;            // this model isn't available: try the next one
+          if (!busyErr(lastMsg)) { const err = new Error(lastMsg); err.code = "error"; throw err; }
+          if (attempt === 0) await wait(1500);    // busy: one quick retry, then the next model
+        }
+      }
+    }
+    if (!res) {
+      const err = new Error("Google's AI is busy right now. Wait a minute and try again. (" + lastMsg.slice(0, 160) + ")");
+      err.code = "busy"; throw err;
     }
     let text = "";
     try { text = res.response.text(); }

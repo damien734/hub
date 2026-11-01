@@ -207,7 +207,7 @@ a.btnlink:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 <input type="file" id="fileIn" accept="image/*" multiple hidden>
 
 <script type="module">
-import {requireMember,makeDb,downloads as dlHelper,getScanner} from "./core.js";
+import {requireMember,makeDb,downloads as dlHelper,getScanner} from "./core.js?v=202611012221";
 (async () => {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

@@ -1,5 +1,5 @@
 // Shared login + database helpers for the app pages (grain.html, chemicals.html).
-import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES, RECAPTCHA_SITE_KEY } from "./firebase-config.js";
+import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES, RECAPTCHA_SITE_KEY } from "./firebase-config.js?v=202611012221";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {

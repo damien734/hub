@@ -190,7 +190,7 @@ body.staff .own{display:none!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611012221";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611012328";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -538,6 +538,16 @@ async function readDocket(f){let blob=f;
    blob=await new Promise(r=>c.toBlob(r,"image/jpeg",.85))||f}catch(e){console.warn("Could not resize photo, sending original",e)}
   return await sample.json(DOCKET_PROMPT,{images:[blob]})}
 const nnum=v=>String(v).toLowerCase().replace(/[^a-z0-9]/g,"");
+const recStore=()=>L.stores.find(x=>/receival/i.test(x))||"Receival site";
+const cleanName=v=>String(v||"").replace(/\s+/g," ").trim().slice(0,60);
+function matchSite(name){const all=L.sites[recStore()]||[],n=nnum(name);if(!n)return "";return all.find(x=>nnum(x)===n)||all.find(x=>nnum(x).includes(n)||n.includes(nnum(x)))||""}
+async function addSite(name){const st=recStore();if(!L.stores.includes(st))L.stores.push(st);L.sites[st]=L.sites[st]||[];if(!L.sites[st].includes(name))L.sites[st].push(name);await saveL();renderLists();renderOut()}
+async function ensureGrade(crop,g){g=cleanName(g);if(!crop||!g)return {g,isNew:false};const list=L.grades[crop]=L.grades[crop]||[];
+  const hit=list.find(x=>nnum(x)===nnum(g));if(hit)return {g:hit,isNew:false};list.push(g);await saveL();renderLists();return {g,isNew:true}}
+function askNewSite(box,name,onYes){const d=document.createElement("div");d.style.marginTop="8px";
+  d.innerHTML=`<b>New receival site on docket: “${esc(name)}”.</b> Add it to your site list?<div class="row" style="margin-top:6px"><button class="p" data-yes>Yes, add ${esc(name)}</button><button class="s" data-no>No</button></div>`;
+  d.querySelector("[data-yes]").onclick=async()=>{await addSite(name);onYes(name);d.innerHTML=`<span class="ok">✓ ${esc(name)} added as a receival site and selected.</span>`};
+  d.querySelector("[data-no]").onclick=()=>{d.innerHTML=`<span class="mut">Not added. Pick the site yourself.</span>`};box.appendChild(d)}
 $("#scanBtn").onclick=()=>$("#scanIn").click();$("#scanCamBtn").onclick=()=>$("#scanCamIn").click();$("#oScanCamBtn").onclick=()=>$("#oScanCamIn").click();
 const scanErr=er=>{console.error("Docket scan failed",er);const why=String(er&&er.message||er||"").slice(0,300);
   return "Could not read that docket"+(er&&er.code&&er.code!=="error"?` (${er.code})`:"")+". You can enter it by hand."+(why?` Details for Claude: ${why}`:"")};
@@ -548,19 +558,22 @@ $("#oScanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=
    oFields();const s=oSrc();if(s&&r.crop&&CROPS.includes(r.crop)&&r.crop!==s.crop)notes.push(`Docket says ${r.crop} but ${s.site||s.store} holds ${s.crop}. Check the silo or bag.`);
    if(r.date)$("#o_date").value=r.date;if(r.docket)$("#o_docket").value=r.docket;if(r.rego)setRego($("#o_rego"),String(r.rego).toUpperCase());if(r.net_tonnes!=null)$("#o_t").value=r.net_tonnes;
    const set=(k,v)=>{if(v!=null)$("#o_"+k).value=v};set("prot",r.protein);set("scr",r.screenings);set("oil",r.oil);set("adm",r.admixture);set("moist",r.moisture);set("tw",r.test_weight);
-   if(r.grade){const c=s?s.crop:"";if(c&&!(L.grades[c]||[]).includes(r.grade))$("#o_grade").insertAdjacentHTML("beforeend",`<option value="${esc(r.grade)}">${esc(r.grade)}</option>`);$("#o_grade").value=r.grade}
-   if(r.site){const opt=[...$("#o_dest").options].find(x=>x.value&&(nnum(x.value).includes(nnum(r.site))||nnum(r.site).includes(nnum(x.value))));if(opt)$("#o_dest").value=opt.value;else notes.push(`Site on docket: ${r.site} (not in your receival sites — add it on the Add screen).`)}
+   if(r.grade){const c=s?s.crop:"";if(c==="Wheat"||c==="Barley"){const x=await ensureGrade(c,r.grade);oFields();$("#o_grade").value=x.g;notes.push(`Grade ${x.g} filled in${x.isNew?" (new grade, added to the list)":""}.`)}else notes.push(`Grade on docket: ${r.grade}.`)}
+   let siteNew="";if(r.site){const nm=cleanName(r.site),hit=matchSite(nm);if(hit)$("#o_dest").value=hit;else if(nm)siteNew=nm}
    if(r.contract_no&&owner()){const c=C.find(x=>nnum(x.no)===nnum(r.contract_no));if(c&&[...$("#o_con").options].some(x=>x.value===c.id)){$("#o_con").value=c.id;notes.push(`Contract ${c.no} selected.`)}else notes.push(`Contract / order no. on docket: ${r.contract_no}${c?" (doesn't match this crop or NGR)":" (not in your contracts)"}.`)}
-   outPrev();m.textContent="Docket read. Check every field against the paper docket before saving. "+notes.join(" ")}
+   outPrev();m.textContent="Docket read. Check every field against the paper docket before saving. "+notes.join(" ");
+   if(siteNew)askNewSite(m,siteNew,nm=>{renderOut();$("#o_dest").value=nm})}
   catch(er){m.className="msg err";m.textContent=scanErr(er)}
   e.target.value=""};
 $("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$("#scanMsg");m.className="msg";m.textContent="Reading docket… this can take up to a minute if Google is busy.";
   try{const r=await readDocket(f);
-   if(r.date)$("#f_date").value=r.date;if(CROPS.includes(r.crop))setCrop(r.crop);if(r.grade&&(L.grades[$("#f_crop").value]||[]).includes(r.grade))setGrade(r.grade);
+   if(r.date)$("#f_date").value=r.date;if(CROPS.includes(r.crop))setCrop(r.crop);let gNote="";if(r.grade){const c=$("#f_crop").value;if(c==="Wheat"||c==="Barley"){const x=await ensureGrade(c,r.grade);setGrade(x.g);gNote=` Grade ${x.g} filled in${x.isNew?` (new ${c.toLowerCase()} grade, added to the list)`:""}.`}else gNote=` Grade on docket: ${r.grade}.`}
+   let siteNew="";if(r.site){const nm=cleanName(r.site),hit=matchSite(nm);if(hit)setSS(recStore(),hit);else if(nm)siteNew=nm}
    if(r.docket)$("#f_docket").value=r.docket;if(r.rego)setRego($("#f_rego"),String(r.rego).toUpperCase());if(r.net_tonnes!=null)$("#f_t").value=r.net_tonnes;
    if(r.protein!=null)$("#f_prot").value=r.protein;if(r.screenings!=null)$("#f_scr").value=r.screenings;if(r.oil!=null)$("#f_oil").value=r.oil;if(r.admixture!=null)$("#f_adm").value=r.admixture;if(r.moisture!=null)$("#f_moist").value=r.moisture;if(r.test_weight!=null)$("#f_tw").value=r.test_weight;
    let cmsg="";if(r.contract_no){const c=C.find(x=>nnum(x.no)===nnum(r.contract_no));if(!c)cmsg=` Contract / order no. on docket: ${r.contract_no} (not in your contracts).`;if(c){if(c.crop!==$("#f_crop").value)setCrop(c.crop);if(c.ngr)ngrOpts($("#f_ngr"),c.ngr);conOptions();$("#f_con").value=c.id;cmsg=` Contract / order no. ${c.no} selected.`;const v=P["c_"+c.id];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v}}
-   preview();m.textContent="Docket read. Please check every field against the paper docket before saving."+(r.grade?` Grade on docket: ${r.grade}.`:"")+cmsg+(r.moisture!=null&&!vis("#l_moist")?` Moisture: ${r.moisture}%.`:"")+(r.site?` Site on docket: ${r.site}.`:"")}
+   preview();m.textContent="Docket read. Please check every field against the paper docket before saving."+gNote+cmsg+(r.moisture!=null&&!vis("#l_moist")?` Moisture: ${r.moisture}%.`:"")+(r.site&&!siteNew?` Site: ${$("#f_site").value}.`:"");
+   if(siteNew)askNewSite(m,siteNew,nm=>setSS(recStore(),nm))}
   catch(er){m.className="msg err";m.textContent=scanErr(er)}
   e.target.value=""};
 

@@ -1,6 +1,6 @@
 // Gunnadoo Command Centre — main app.
 // Uses Firebase Auth (logins) + Cloud Firestore (data). No build step needed.
-import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES } from "./firebase-config.js?v=202611022021";
+import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES } from "./firebase-config.js?v=202611022025";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,

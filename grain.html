@@ -48,6 +48,8 @@ label.need input,label.need select{border:3px solid var(--bad);background:#fde8e
 .flagx{display:inline-block;background:#c62828;color:#fff;border-radius:12px;padding:3px 10px;font-weight:800;font-size:14px;margin:4px 0}
 .card.flagged{border:3px solid #c62828}
 .tabs .cnt{display:inline-block;background:#c62828;color:#fff;border-radius:10px;padding:0 7px;font-size:13px;margin-left:5px;line-height:20px}
+button.sgn{min-width:48px;min-height:48px;border-radius:10px;border:2px solid var(--ok);background:var(--card);color:var(--ok);font-size:24px;font-weight:800;padding:0}
+button.sgn.neg{border-color:var(--bad);color:var(--bad)}
 .msg{padding:9px;border-radius:8px;margin:8px 0;font-size:14px;background:var(--card);border:1px solid var(--bd)}.err{color:var(--bad)}.ok{color:var(--ok);font-weight:700}
 .hide{display:none}button.x{background:none;border:0;color:var(--ac);padding:6px 10px;min-height:44px;font-weight:600}
 body.staff .own{display:none!important}
@@ -121,7 +123,7 @@ body.staff .own{display:none!important}
    <label>Payment terms (days)<input type="number" id="c_terms" inputmode="numeric" placeholder="e.g. 15 (0 = due at end of week)"></label>
    
   </div>
-  <div style="margin-top:10px"><b>Quality spreads</b><div class="mut">Price change in $/t for each grade delivered, compared with the contract price (e.g. H1 +25, ASW1 -15, Feed -60). Leave blank if the contract has no spreads.</div>
+  <div style="margin-top:10px"><b>Quality spreads</b><div class="mut">Price change in $/t for each grade delivered, compared with the contract price (e.g. H1 +25, ASW1 −15, Feed −60). Tap the <b>+</b> button to switch it to <b>−</b> for a discount. Leave blank if the contract has no spreads.</div>
    <div id="spreadRows"></div><datalist id="spreadGrades"></datalist>
    <div class="row" style="margin-top:4px"><button class="s" id="addSpread" type="button">＋ Add spread</button></div></div>
   <div class="row"><button class="p" id="saveCon">Save contract</button><button class="s hide" id="cancelCon">Cancel edit</button></div>
@@ -193,7 +195,7 @@ body.staff .own{display:none!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611022021";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611022025";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -404,13 +406,16 @@ $("#delList").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
 
 /* contracts (owner) */
 function spreadRow(g,v){const d=document.createElement("div");d.className="row";d.style.margin="4px 0";
-  d.innerHTML=`<input list="spreadGrades" placeholder="Grade (e.g. H1)" style="flex:1;min-width:110px" data-sg value="${esc(g||"")}"><input type="number" step="0.01" inputmode="decimal" placeholder="+/- $/t" style="width:120px" data-sv value="${v==null?"":esc(v)}"><button class="x" type="button" data-sdel>Remove</button>`;
+  const neg=v!=null&&v!==""&&Number(v)<0,amt=v==null||v===""?"":Math.abs(Number(v));
+  d.innerHTML=`<input list="spreadGrades" placeholder="Grade (e.g. H1)" style="flex:1;min-width:110px" data-sg value="${esc(g||"")}"><button type="button" class="sgn" data-ss="${neg?"-":"+"}" aria-label="Premium or discount">${neg?"−":"+"}</button><input type="text" inputmode="decimal" placeholder="$/t" style="width:100px" data-sv value="${esc(amt)}"><button class="x" type="button" data-sdel>Remove</button>`;
+  const sb=d.querySelector("[data-ss]"),paint=()=>{const n=sb.dataset.ss==="-";sb.textContent=n?"−":"+";sb.title=n?"Discount (tap to make it a premium)":"Premium (tap to make it a discount)";sb.classList.toggle("neg",n)};paint();
+  sb.onclick=()=>{sb.dataset.ss=sb.dataset.ss==="-"?"+":"-";paint()};
   d.querySelector("[data-sdel]").onclick=()=>d.remove();$("#spreadRows").appendChild(d)}
 function spreadGradesList(){const c=$("#c_crop").value;$("#spreadGrades").innerHTML=(L.grades[c]||[]).map(g=>`<option value="${esc(g)}">`).join("")}
 $("#addSpread").onclick=()=>{spreadGradesList();spreadRow("","")};
 $("#c_crop").addEventListener("change",spreadGradesList);
-const readSpreads=()=>{const o={};let bad="";document.querySelectorAll("#spreadRows .row").forEach(r=>{const g=r.querySelector("[data-sg]").value.trim(),v=r.querySelector("[data-sv]").value.trim();
-  if(!g&&!v)return;if(!g||v===""||!isFinite(Number(v)))bad=g||v;else o[g]=Number(v)});return {o,bad}};
+const readSpreads=()=>{const o={};let bad="";document.querySelectorAll("#spreadRows .row").forEach(r=>{const g=r.querySelector("[data-sg]").value.trim(),raw=r.querySelector("[data-sv]").value.trim().replace(/[$\s]/g,"").replace(/^[−–]/,"-"),neg=r.querySelector("[data-ss]").dataset.ss==="-";
+  if(!g&&!raw)return;const n=Number(raw);if(!g||raw===""||!isFinite(n))bad=g||raw;else o[g]=(raw.startsWith("-")||neg?-1:1)*Math.abs(n)});return {o,bad}};
 function clearCon(){editC=null;$("#spreadRows").innerHTML="";["c_no","c_buyer","c_loc","c_qty","c_price","c_terms","c_ngr"].forEach(i=>$("#"+i).value="");$("#c_basis").value="days";$("#cTitle").textContent="Add contract";$("#cancelCon").classList.add("hide")}
 $("#cancelCon").onclick=clearCon;
 $("#saveCon").onclick=async()=>{const c={ngr:$("#c_ngr").value||null,no:$("#c_no").value.trim(),buyer:$("#c_buyer").value.trim(),crop:$("#c_crop").value,loc:$("#c_loc").value.trim(),qty:num("#c_qty"),terms:num("#c_terms"),basis:$("#c_basis").value};

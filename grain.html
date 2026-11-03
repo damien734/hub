@@ -205,7 +205,7 @@ body.staff .staffnote{display:inline!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611032004";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611032014";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});

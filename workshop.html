@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611032004";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611032014";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -749,16 +749,18 @@ async function splitTransPlan(){
 /* one-time update: make sure these video links are on the machine (added only if missing) */
 const ADD_VIDEOS=[{match:/7230/,videos:[
   {title:"Case IH 7230 video playlist (YouTube)",url:"https://youtube.com/playlist?list=PL2PndQdkNRHGXLR-1ukWqTTXX_xKZqSV3",notes:""},
-  {title:"Case IH 7230 video (YouTube)",url:"https://youtu.be/WmhqxvHQY8w",notes:""},
-  {title:"Case IH 7230 video 2 (YouTube)",url:"https://youtu.be/GPw_byjUHAA",notes:""}]}];
+  {title:"Header setup video 1 – Brett Asphar, Specialised AG (YouTube)",url:"https://youtu.be/WmhqxvHQY8w",notes:"Header setup"},
+  {title:"Header setup video 2 – Brett Asphar, Specialised AG (YouTube)",url:"https://youtu.be/GPw_byjUHAA",notes:"Header setup"}]}];
 let addingV=false;
 async function addVideos(){
   if(addingV)return;
   for(const r of ADD_VIDEOS){const m=S.machines.find(x=>r.match.test(String(x.name||"")+" "+String(x.model||"")));if(!m)continue;
     const vid=u=>{const x=String(u).match(/(?:list=|youtu\.be\/|v=)([\w-]+)/);return x?x[1]:u};
-    const have=new Set((m.videos||[]).map(v=>vid(v.url)));const add=r.videos.filter(v=>!have.has(vid(v.url)));
-    if(!add.length)continue;addingV=true;
-    try{await S.db.doc("machines/"+m.id).update({videos:[...(m.videos||[]),...add]})}catch(e){}finally{addingV=false}}
+    const want=new Map(r.videos.map(v=>[vid(v.url),v]));let ch=false;
+    const cur=(m.videos||[]).map(v=>{const w=want.get(vid(v.url));if(w&&r.rename!==false&&w.notes&&(v.title!==w.title||v.notes!==w.notes)){ch=true;return {...v,title:w.title,notes:w.notes}}return v});
+    const have=new Set(cur.map(v=>vid(v.url)));const add=r.videos.filter(v=>!have.has(vid(v.url)));
+    if(!add.length&&!ch)continue;addingV=true;
+    try{await S.db.doc("machines/"+m.id).update({videos:[...cur,...add]})}catch(e){}finally{addingV=false}}
 }
 
 /* ---------- boot ---------- */

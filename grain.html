@@ -98,7 +98,7 @@ body.staff .staffnote{display:inline!important}
    <label>Contract / order no. (optional)<select id="f_con"></select></label>
    <label>Date<input type="date" id="f_date"></label>
    <div style="grid-column:1/-1"><label>Status</label><div class="seg" id="f_saleSeg" style="margin:4px 0 0"><button type="button" data-sale="warehouse"><svg class="silo" viewBox="0 0 40 28" aria-hidden="true"><path d="M3 10q6-8 12 0v16H3z" fill="#b8c4cc" stroke="#55626b"/><path d="M15 8q7-8 14 0v18H15z" fill="#d3dbe0" stroke="#55626b"/><path d="M29 12q5-6 9 0v14h-9z" fill="#b8c4cc" stroke="#55626b"/><path d="M3 16h12M15 15h14M29 18h9" stroke="#55626b" stroke-width=".8"/><path d="M1 26h38" stroke="#55626b" stroke-width="1.5"/></svg> Warehouse</button><button type="button" data-sale="sold">💲 Sold</button></div></div>
-   <label class="hide" id="l_price">Sold price $/t (base)<span class="mut staffnote" style="display:none"> — optional, only Damo and Carissa see it after saving</span><input type="number" id="f_price" step="0.01" inputmode="decimal"></label>
+   <label class="hide" id="l_price"><span id="f_priceLbl">Sold price $/t (base)</span><span class="mut staffnote" style="display:none"> — optional, only Damo and Carissa see it after saving</span><input type="number" id="f_price" step="0.01" inputmode="decimal"></label>
   </div>
   <div id="preview" class="mut" style="margin-top:8px"></div>
   <div class="row"><button class="p lg" id="saveDel">Save load</button></div>
@@ -149,7 +149,7 @@ body.staff .staffnote{display:inline!important}
    <label>Truck rego<select id="o_rego"></select></label>
    <label>Date<input type="date" id="o_date"></label>
    <div style="grid-column:1/-1"><label>Status</label><div class="seg" id="o_saleSeg" style="margin:4px 0 0"><button type="button" data-sale="warehouse"><svg class="silo" viewBox="0 0 40 28" aria-hidden="true"><path d="M3 10q6-8 12 0v16H3z" fill="#b8c4cc" stroke="#55626b"/><path d="M15 8q7-8 14 0v18H15z" fill="#d3dbe0" stroke="#55626b"/><path d="M29 12q5-6 9 0v14h-9z" fill="#b8c4cc" stroke="#55626b"/><path d="M3 16h12M15 15h14M29 18h9" stroke="#55626b" stroke-width=".8"/><path d="M1 26h38" stroke="#55626b" stroke-width="1.5"/></svg> Warehouse</button><button type="button" data-sale="sold">💲 Sold</button></div></div>
-   <label class="hide" id="lo_price">Sold price $/t (base)<span class="mut staffnote" style="display:none"> — optional, only Damo and Carissa see it after saving</span><input type="number" id="o_price" step="0.01" inputmode="decimal"></label>
+   <label class="hide" id="lo_price"><span id="o_priceLbl">Sold price $/t (base)</span><span class="mut staffnote" style="display:none"> — optional, only Damo and Carissa see it after saving</span><input type="number" id="o_price" step="0.01" inputmode="decimal"></label>
    <label class="own">Contract / order no. (optional)<select id="o_con"></select></label>
    <label id="lo_prot" class="hide">Protein %<input type="number" id="o_prot" step="0.1" inputmode="decimal"></label>
    <label id="lo_grade" class="hide">Grade<select id="o_grade"></select></label>
@@ -205,7 +205,7 @@ body.staff .staffnote{display:inline!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611031103";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611031106";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -377,23 +377,32 @@ function readDel(){return{farm:($("#f_farm").value||pfarm($("#f_paddock").value)
 let fSale="warehouse",oSale="warehouse";
 function setSale(which,v){if(which==="f"){fSale=v}else{oSale=v}
   document.querySelectorAll(`#${which}_saleSeg button`).forEach(b=>b.classList.toggle("on",b.dataset.sale===v));
-  $(which==="f"?"#l_price":"#lo_price").classList.toggle("hide",v!=="sold");if(which==="f")preview()}
+  $(which==="f"?"#l_price":"#lo_price").classList.toggle("hide",v!=="sold");conUI(which);if(which==="f")preview()}
+/* a load on a contract is Sold at the contract price: price locked for admins, hidden for staff */
+function conUI(which){const cid=$(which==="f"?"#f_con":"#o_con").value,box=$(which==="f"?"#l_price":"#lo_price"),inp=$("#"+which+"_price"),
+  lbl=$("#"+which+"_priceLbl"),wh=document.querySelector(`#${which}_saleSeg [data-sale="warehouse"]`),note=box.querySelector(".staffnote");
+  if(cid){if(which==="f")fSale="sold";else oSale="sold";document.querySelectorAll(`#${which}_saleSeg button`).forEach(b=>b.classList.toggle("on",b.dataset.sale==="sold"));
+    wh.style.display="none";inp.readOnly=true;inp.dataset.con="1";
+    if(owner()){const v=P["c_"+cid],c=C.find(x=>x.id===cid);inp.value=v??"";box.classList.remove("hide");lbl.textContent=`Contract ${c?c.no+" ":""}price $/t 🔒`;inp.style.background="var(--bd)";if(note)note.style.visibility="hidden"}
+    else{inp.value="";box.classList.add("hide")}}
+  else{wh.style.display="";if(inp.dataset.con){inp.value="";delete inp.dataset.con}inp.readOnly=false;inp.style.background="";lbl.textContent="Sold price $/t (base)";if(note)note.style.visibility="";
+    box.classList.toggle("hide",(which==="f"?fSale:oSale)!=="sold")}}
 $("#f_saleSeg").onclick=e=>{const b=e.target.closest("[data-sale]");if(!b)return;setSale("f",b.dataset.sale);if(b.dataset.sale==="sold")$("#f_price").focus()};
 $("#o_saleSeg").onclick=e=>{const b=e.target.closest("[data-sale]");if(!b)return;setSale("o",b.dataset.sale);if(b.dataset.sale==="sold")$("#o_price").focus()};
-$("#o_con").addEventListener("change",()=>{const c=$("#o_con").value;if(c&&owner()){setSale("o","sold");const v=P["c_"+c];if(v!=null&&!$("#o_price").value)$("#o_price").value=v}});
+$("#o_con").addEventListener("change",()=>conUI("o"));
 function preview(){const d=readDel();let s="";
   if(d.t&&d.crop==="Canola")s=`Clean tonnes: ${fmt(cleanT(d))}`;
   if(owner()&&d.t&&fSale==="sold"){const p=num("#f_price");if(p!=null){const sp=spreadFor(d.cid,d.grade),a=adj(d.crop,d.oil,p+sp);s+=(s?" · ":"")+`$${fmt(a)}/t${sp?` (incl. ${sp>0?"+":"−"}$${fmt(Math.abs(sp))} ${d.grade} spread)`:""}${d.crop==="Canola"?" after oil":""} · Value ≈ ${money(a*cleanT(d))}`}}
   $("#preview").textContent=s}
 ["f_t","f_oil","f_adm","f_price"].forEach(i=>$("#"+i).oninput=preview);
-$("#f_con").onchange=()=>{if($("#f_con").value&&owner())setSale("f","sold");{const c=C.find(x=>x.id===$("#f_con").value);if(c&&c.ngr&&$("#f_ngr").value!==c.ngr)ngrOpts($("#f_ngr"),c.ngr)}const v=P["c_"+$("#f_con").value];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v;preview()};
+$("#f_con").onchange=()=>{conUI("f");{const c=C.find(x=>x.id===$("#f_con").value);if(c&&c.ngr&&$("#f_ngr").value!==c.ngr)ngrOpts($("#f_ngr"),c.ngr)}preview()};
 function conOptions(){const sel=$("#f_con"),cur=sel.value,crop=$("#f_crop").value,ng=$("#f_ngr").value;
-  sel.innerHTML=`<option value="">None / not contracted</option>`+C.filter(c=>c.crop===crop&&(!c.ngr||!ng||c.ngr===ng)).map(c=>`<option value="${c.id}">${esc(c.no)} – ${esc(c.buyer)} (${fmt(c.qty-delivered(c),0)} t left)</option>`).join("");sel.value=cur}
+  sel.innerHTML=`<option value="">None / not contracted</option>`+C.filter(c=>c.crop===crop&&(!c.ngr||!ng||c.ngr===ng)).map(c=>`<option value="${c.id}">${esc(c.no)} – ${esc(c.buyer)} (${fmt(c.qty-delivered(c),0)} t left)</option>`).join("");sel.value=[...sel.options].some(o=>o.value===cur)?cur:"";conUI("f")}
 function fillFrom(d,full){if(full)setSale("f",saleOf(d));if(full&&!owner())$("#f_price").value="";setCrop(d.crop);setSS(d.store||L.stores[0],d.site||"");setGrade(full?d.grade:"");
   $("#f_prot").value=full?(d.prot??""):"";$("#f_scr").value=full?(d.scr??""):"";$("#f_oil").value=full?(d.oil??""):"";$("#f_adm").value=full?(d.adm??""):"";$("#f_moist").value=full?(d.moist??""):"";$("#f_tw").value=full?(d.tw??""):"";
   $("#f_con").value=d.cid||"";$("#f_price").value=owner()?((full?P["d_"+d.id]:(lastPrice(d.crop)??P["d_"+d.id]))??""):"";
   if(d.ngr)ngrOpts($("#f_ngr"),d.ngr);
-  $("#f_docket").value=full?(d.docket||""):"";setRego($("#f_rego"),d.rego||"");if(FM.some(f=>f.name===d.farm))$("#f_farm").value=d.farm;setPad(full?d.paddock:"");$("#f_t").value=full?(d.t??""):"";if(full)$("#f_date").value=d.date;preview()}
+  $("#f_docket").value=full?(d.docket||""):"";setRego($("#f_rego"),d.rego||"");if(FM.some(f=>f.name===d.farm))$("#f_farm").value=d.farm;setPad(full?d.paddock:"");$("#f_t").value=full?(d.t??""):"";if(full)$("#f_date").value=d.date;conUI("f");preview()}
 function lastPrice(c){const r=D.filter(x=>x.crop===c&&P["d_"+x.id]!=null).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0))[0];return r?P["d_"+r.id]:null}
 function lastLoad(){const m=D.filter(x=>x.by===myId),a=m.length?m:D;return a.reduce((b,x)=>!b||(x.ts||0)>(b.ts||0)?x:b,null)}
 $("#again").onclick=()=>{const l=lastLoad();if(!l){status("No earlier load to copy yet.",true);return}status("");fillFrom(l,false);$("#f_t").focus()};
@@ -416,7 +425,7 @@ $("#saveDel").onclick=async()=>{const d=readDel();
   if(!db){status("Saving is not available in this view.",true);return}
   try{let id=editD;const old=editD&&D.find(x=>x.id===editD);d.sale=fSale;
    if(old){d.ts=old.ts;d.by=old.by;d.byName=old.byName||nm;d.editedBy=nm;if(old.paid)d.paid=true;await db.doc("deliveries/"+id).set(d)}else{d.ts=Date.now();d.by=myId;d.byName=nm;const r=db.collection("deliveries").doc();id=r.id;await r.set(d)}
-   {const p=fSale==="sold"?num("#f_price"):null,pr=db.doc("pricing/d_"+id);
+   {const p=fSale==="sold"&&!d.cid?num("#f_price"):null,pr=db.doc("pricing/d_"+id);
      if(owner()){if(p!=null)await pr.set({v:p});else if(old)await pr.delete().catch(()=>{})}
      else if(p!=null){await pr.set({v:p}).catch(()=>status("The load saved, but the price couldn't be saved. Tell Damo.",true));$("#f_price").value=""}}
    rememberRego(d.rego);
@@ -543,8 +552,8 @@ const oAvail=s=>{const eo=editO&&O.find(x=>x.id===editO);return s.left+(eo&&skey
 function oFields(){const s=oSrc(),c=s?s.crop:"",wb=c==="Wheat"||c==="Barley",ca=c==="Canola";
   [["lo_prot",wb],["lo_scr",wb],["lo_grade",wb],["lo_oil",ca],["lo_adm",ca],["lo_moist",wb||ca],["lo_tw",ca]].forEach(([id,on])=>$("#"+id).classList.toggle("hide",!on));
   const g=$("#o_grade"),gv=g.value;g.innerHTML=`<option value="">— select —</option>`+(L.grades[c]||[]).map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");if(gv&&!(L.grades[c]||[]).includes(gv))g.insertAdjacentHTML("beforeend",`<option value="${esc(gv)}">${esc(gv)}</option>`);g.value=gv;
-  const cs=$("#o_con"),cv=cs.value;cs.innerHTML=`<option value="">None / not contracted</option>`+C.filter(x=>x.crop===c&&(!x.ngr||!s||!s.ngr||x.ngr===s.ngr)).map(x=>`<option value="${x.id}">${esc(x.no)} – ${esc(x.buyer)} (${fmt(x.qty-delivered(x),0)} t left)</option>`).join("");cs.value=[...cs.options].some(o=>o.value===cv)?cv:""}
-function oClear(){setSale("o","warehouse");["o_price","o_t","o_docket","o_prot","o_scr","o_oil","o_adm","o_moist","o_tw"].forEach(i=>$("#"+i).value="");$("#o_grade").value="";$("#o_con").value=""}
+  const cs=$("#o_con"),cv=cs.value;cs.innerHTML=`<option value="">None / not contracted</option>`+C.filter(x=>x.crop===c&&(!x.ngr||!s||!s.ngr||x.ngr===s.ngr)).map(x=>`<option value="${x.id}">${esc(x.no)} – ${esc(x.buyer)} (${fmt(x.qty-delivered(x),0)} t left)</option>`).join("");cs.value=[...cs.options].some(o=>o.value===cv)?cv:"";conUI("o")}
+function oClear(){$("#o_con").value="";setSale("o","warehouse");["o_price","o_t","o_docket","o_prot","o_scr","o_oil","o_adm","o_moist","o_tw"].forEach(i=>$("#"+i).value="");$("#o_grade").value="";$("#o_con").value=""}
 function oEndEdit(){editO=null;$("#oTitle").textContent="Out load";$("#o_save").textContent="Save out load";$("#o_cancel").classList.add("hide")}
 $("#o_cancel").onclick=()=>{oEndEdit();oClear();renderOut()};
 function outPrev(){const s=oSrc(),t=num("#o_t");$("#o_prev").textContent=s&&t?`${fmt(Math.max(oAvail(s)-t,0))} t left in ${s.site||s.store} after this load${t>oAvail(s)+0.005?" (more than is stored)":""}`:""}
@@ -565,7 +574,7 @@ $("#o_save").onclick=async()=>{const s=stock().find(x=>x.k===$("#o_src").value),
   const old=editO&&O.find(x=>x.id===editO);let oid=old?old.id:null;
   try{if(old){if(!owner()){rec.cid=old.cid??null}await db.doc("outloads/"+old.id).set({...rec,ts:old.ts,by:old.by,byName:old.byName||nm,editedBy:nm,...(old.paid?{paid:true}:{})})}
    else{if(!owner())rec.cid=null;const ref=db.collection("outloads").doc();oid=ref.id;await ref.set({...rec,ts:Date.now(),by:myId,byName:nm})}
-   {const p=oSale==="sold"?num("#o_price"):null,pr=db.doc("pricing/o_"+oid);
+   {const p=oSale==="sold"&&!rec.cid?num("#o_price"):null,pr=db.doc("pricing/o_"+oid);
      if(owner()){if(p!=null)await pr.set({v:p});else if(old)await pr.delete().catch(()=>{})}
      else if(p!=null)await pr.set({v:p}).catch(()=>status("The out load saved, but the price couldn't be saved. Tell Damo.",true))}
    rememberRego($("#o_rego").value);
@@ -575,7 +584,7 @@ $("#o_list").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.oe){const o=O.find(x=>x.id===b.dataset.oe);if(!o)return;editO=o.id;renderOut();$("#o_src").value=skey(o);oFields();
     $("#o_t").value=o.t??"";setRego($("#o_rego"),o.rego||"");$("#o_docket").value=o.docket||"";$("#o_date").value=o.date||today();
     if(o.dest&&![...$("#o_dest").options].some(x=>x.value===o.dest))$("#o_dest").insertAdjacentHTML("beforeend",`<option value="${esc(o.dest)}">${esc(o.dest)}</option>`);$("#o_dest").value=o.dest||"";
-    ["prot","scr","oil","adm","moist","tw"].forEach(k=>$("#o_"+k).value=o[k]??"");oFields();$("#o_grade").value=o.grade||"";$("#o_con").value=o.cid||"";setSale("o",saleOf({...o,_out:true}));$("#o_price").value=owner()?(P["o_"+o.id]??""):"";
+    ["prot","scr","oil","adm","moist","tw"].forEach(k=>$("#o_"+k).value=o[k]??"");oFields();$("#o_grade").value=o.grade||"";$("#o_con").value=o.cid||"";setSale("o",saleOf({...o,_out:true}));$("#o_price").value=owner()?(P["o_"+o.id]??""):"";conUI("o");
     $("#oTitle").textContent="Edit out load";$("#o_save").textContent="Update out load";$("#o_cancel").classList.remove("hide");outPrev();$("#t-out").scrollIntoView({behavior:"smooth"});return}
   if(!b.dataset.ox)return;
   if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}

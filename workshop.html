@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611032003";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611032004";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -749,7 +749,8 @@ async function splitTransPlan(){
 /* one-time update: make sure these video links are on the machine (added only if missing) */
 const ADD_VIDEOS=[{match:/7230/,videos:[
   {title:"Case IH 7230 video playlist (YouTube)",url:"https://youtube.com/playlist?list=PL2PndQdkNRHGXLR-1ukWqTTXX_xKZqSV3",notes:""},
-  {title:"Case IH 7230 video (YouTube)",url:"https://youtu.be/WmhqxvHQY8w",notes:""}]}];
+  {title:"Case IH 7230 video (YouTube)",url:"https://youtu.be/WmhqxvHQY8w",notes:""},
+  {title:"Case IH 7230 video 2 (YouTube)",url:"https://youtu.be/GPw_byjUHAA",notes:""}]}];
 let addingV=false;
 async function addVideos(){
   if(addingV)return;

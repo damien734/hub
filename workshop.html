@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611031106";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611031920";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -483,33 +483,48 @@ function openLog(m,type){
       ${m2(m)?`<label>${esc(m2(m))} hours<input id="lf-reading2" type="number" inputmode="decimal" step="any" placeholder="${m.reading2??""}"></label>`:""}
       <label>Done by<input id="lf-by" type="text" placeholder="Name" value="${esc(S.me?.name||"")}"></label>
     </div>
-    <label>What was done / what's wrong<input id="lf-title" type="text" required placeholder="e.g. 500 hr service, hydraulic hose leaking at loader"></label>
+    <label>What was done / what's wrong<input id="lf-title" type="text" placeholder="e.g. 500 hr service, hydraulic hose leaking at loader"></label>
     <label>Details<textarea id="lf-det" rows="3"></textarea></label>
     <label>Parts & oils used<input id="lf-parts" type="text" placeholder="e.g. Engine oil filter, 18 L 15W-40"></label>
-    <div id="lf-ivwrap" ${type==="service"&&iv.length?"":"hidden"}>
-      <div class="note" style="margin-bottom:4px">Tick the scheduled tasks this job covered:</div>
+    <div id="lf-ivwrap" ${(type==="service"||type==="repair")&&iv.length?"":"hidden"}>
+      <div class="note" style="margin-bottom:4px">Tick the scheduled services this job covered:</div>
       <div class="checks">${iv.map((x,i)=>`<label><input type="checkbox" id="lf-iv${i}" value="${i}"> ${esc(x.task)}</label>`).join("")}</div>
     </div>
     <div id="lf-err" class="err" hidden></div>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" id="lf-save">Save</button></div>
   </form>`);
-  s.querySelector("#lf-type").addEventListener("change",e=>{s.querySelector("#lf-ivwrap").hidden=!(e.target.value==="service"&&iv.length)});
+  s.querySelector("#lf-type").addEventListener("change",e=>{s.querySelector("#lf-ivwrap").hidden=!((e.target.value==="service"||e.target.value==="repair")&&iv.length)});
   s.querySelector("#logForm").addEventListener("submit",async e=>{
-    e.preventDefault();const btn=s.querySelector("#lf-save");btn.disabled=true;
-    const ty=s.querySelector("#lf-type").value, date=s.querySelector("#lf-date").value, rd=num(s.querySelector("#lf-reading").value), rd2El=s.querySelector("#lf-reading2"), rd2=rd2El?num(rd2El.value):null;
+    e.preventDefault();const btn=s.querySelector("#lf-save");
+    const ty0=s.querySelector("#lf-type").value;
+    const doneIdx=(ty0==="service"||ty0==="repair")?[...s.querySelectorAll("#lf-ivwrap .checks input:checked")].map(c=>+c.value):[];
+    const ticked=doneIdx.map(i=>(iv[i]||{}).task).filter(Boolean);
+    const tEl=s.querySelector("#lf-title");if(!tEl.value.trim()&&ticked.length)tEl.value=ticked.join(", ");
+    if(!tEl.value.trim()){const el=s.querySelector("#lf-err");el.hidden=false;el.textContent="Type what was done, or tick the services this job covered.";tEl.focus();return}
+    btn.disabled=true;
+    const ty=ty0, date=s.querySelector("#lf-date").value, rd=num(s.querySelector("#lf-reading").value), rd2El=s.querySelector("#lf-reading2"), rd2=rd2El?num(rd2El.value):null;
     const log={machineId:m.id,type:ty,date,reading:rd,title:s.querySelector("#lf-title").value.trim(),details:s.querySelector("#lf-det").value.trim(),
-      parts:s.querySelector("#lf-parts").value.trim(),doneBy:s.querySelector("#lf-by").value.trim(),by:S.uid||null,byName:S.me?.name||"",createdAt:Date.now(),resolved:false,reading2:rd2};
+      parts:s.querySelector("#lf-parts").value.trim(),doneBy:s.querySelector("#lf-by").value.trim(),by:S.uid||null,byName:S.me?.name||"",createdAt:Date.now(),resolved:false,reading2:rd2,tasks:ticked};
     try{
       await S.db.collection("logs").add(log);
       const patch={};
       if(rd!=null&&(num(m.reading)==null||rd>=num(m.reading))){patch.reading=rd;patch.readingDate=date}
       if(rd2!=null&&(num(m.reading2)==null||rd2>=num(m.reading2))){patch.reading2=rd2;patch.reading2Date=date}
-      if(ty==="service"){const done=[...s.querySelectorAll(".checks input:checked")].map(c=>+c.value);
-        if(done.length){patch.intervals=(m.intervals||[]).map((x,i)=>done.includes(i)?{...x,lastAt:((x.meter==="2"&&m2(m))?rd2:rd)??x.lastAt??null,lastDate:date}:x)}}
+      const nx=applyTicks(m,doneIdx,date,rd,rd2);if(nx)patch.intervals=nx;
       if(Object.keys(patch).length) await S.db.doc("machines/"+m.id).update(patch);
       closeSheet();toast(ty==="issue"?"Problem reported":"Job logged");
     }catch(err){btn.disabled=false;const el=s.querySelector("#lf-err");el.hidden=false;el.textContent="Couldn't save this entry. Check your connection and try again.";if(err&&err.code==="invalid_argument")writeFail(err)}
   });
+}
+
+/* mark ticked scheduled services done at this date/hours, unless done more recently */
+function applyTicks(m,doneIdx,date,rd,rd2){
+  if(!doneIdx.length)return null;const iv=m.intervals||[];let ch=false;
+  const next=iv.map((x,i)=>{if(!doneIdx.includes(i))return x;
+    const at=((x.meter==="2"&&m2(m))?rd2:rd);
+    const newer=!x.lastDate||normD(date)>=normD(x.lastDate)||(at!=null&&num(x.lastAt)!=null&&at>=num(x.lastAt));
+    if(!newer)return x;ch=true;return {...x,lastAt:at??x.lastAt??null,lastDate:date}});
+  return ch?next:null;
 }
 
 /* ---------- edit / delete a history entry (Damo only) ---------- */
@@ -523,11 +538,15 @@ function editLog(m,l){
       ${m2(m)?`<label>${esc(m2(m))} hours<input id="el-reading2" type="number" inputmode="decimal" step="any" value="${esc(l.reading2??"")}"></label>`:""}
       <label>Done by<input id="el-by" type="text" value="${esc(l.doneBy||"")}"></label>
     </div>
-    <label>What was done / what's wrong<input id="el-title" type="text" required value="${esc(l.title||"")}"></label>
+    <label>What was done / what's wrong<input id="el-title" type="text" value="${esc(l.title||"")}"></label>
     <label>Details<textarea id="el-det" rows="3">${esc(l.details||"")}</textarea></label>
     <label>Parts & oils used<input id="el-parts" type="text" value="${esc(l.parts||"")}"></label>
     ${l.type==="issue"?`<div class="checks"><label><input type="checkbox" id="el-res"${l.resolved?" checked":""}> Fixed</label></div>`:""}
-    <div class="note">Changing an entry here doesn't change the machine's current hours or service due dates. Use Edit details on the machine for those.</div>
+    <div id="el-ivwrap" ${(l.type==="service"||l.type==="repair")&&(m.intervals||[]).length?"":"hidden"}>
+      <div class="note" style="margin-bottom:4px">Tick the scheduled services this job covered:</div>
+      <div class="checks">${(m.intervals||[]).map((x,i)=>`<label><input type="checkbox" value="${i}"${(l.tasks||[]).includes(x.task)?" checked":""}> ${esc(x.task)}</label>`).join("")}</div>
+      <div class="note" style="margin-top:4px">Ticking a service sets it as done at this entry's date and hours, unless it has been done more recently.</div>
+    </div>
     <div id="el-err" class="err" hidden></div>
     <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
       <button type="button" class="btn" id="el-del">Delete entry</button>
@@ -535,6 +554,7 @@ function editLog(m,l){
     </div>
   </form>`);
   const fail=()=>{const x=s.querySelector("#el-err");x.hidden=false;x.textContent="Couldn't save. Check the latest security rules are published in Firebase, then try again."};
+  s.querySelector("#el-type").addEventListener("change",e=>{s.querySelector("#el-ivwrap").hidden=!((e.target.value==="service"||e.target.value==="repair")&&(m.intervals||[]).length)});
   let armed=false;
   s.querySelector("#el-del").addEventListener("click",async e=>{const b=e.currentTarget;if(!armed){armed=true;b.textContent="Tap again to delete";return}
     b.disabled=true;try{await S.db.doc("logs/"+l.id).delete();closeSheet();toast("Entry deleted")}catch(err){b.disabled=false;fail()}});
@@ -544,7 +564,13 @@ function editLog(m,l){
       parts:g("parts").value.trim(),doneBy:g("by").value.trim(),editedBy:S.me?.name||"",editedAt:Date.now()};
     if(g("reading2"))patch.reading2=num(g("reading2").value);
     if(ty==="issue"){const fixed=res?res.checked:!!l.resolved;patch.resolved=fixed;if(fixed&&!l.resolvedDate)patch.resolvedDate=today()}
-    try{await S.db.doc("logs/"+l.id).update(patch);closeSheet();toast("Entry updated")}catch(err){btn.disabled=false;fail()}});
+    const doneIdx=(ty==="service"||ty==="repair")?[...s.querySelectorAll("#el-ivwrap .checks input:checked")].map(c=>+c.value):[];
+    patch.tasks=doneIdx.map(i=>((m.intervals||[])[i]||{}).task).filter(Boolean);
+    if(!patch.title&&patch.tasks.length)patch.title=patch.tasks.join(", ");
+    try{await S.db.doc("logs/"+l.id).update(patch);
+      const nx=applyTicks(m,doneIdx,patch.date,patch.reading,patch.reading2??null);
+      if(nx)await S.db.doc("machines/"+m.id).update({intervals:nx});
+      closeSheet();toast("Entry updated")}catch(err){btn.disabled=false;fail()}});
 }
 
 /* ---------- edit machine (editors) ---------- */
@@ -707,6 +733,19 @@ async function scanLabels(s){
     finally{inp.disabled=false;inp.value=""}});
 }
 
+/* one-time update (Nov 2026): transmission and front planetaries are separate services */
+let splitting=false;
+async function splitTransPlan(){
+  if(splitting)return;const OLD="transmission & front planetaries oil";
+  const m=S.machines.find(x=>(x.intervals||[]).some(i=>String(i.task).toLowerCase()===OLD)||(x.fluids||[]).some(f=>String(f.system).toLowerCase()===OLD));
+  if(!m)return;splitting=true;
+  const fl=[];(m.fluids||[]).forEach(f=>{if(String(f.system).toLowerCase()!==OLD){fl.push(f);return}
+    fl.push({...f,system:"Transmission oil",qty:"19 L"});fl.push({...f,system:"Front planetaries oil",qty:"6.7 L each side (13.4 L)"})});
+  const iv=[];(m.intervals||[]).forEach(i=>{if(String(i.task).toLowerCase()!==OLD){iv.push(i);return}
+    iv.push({...i,task:"Transmission oil",parts:"Transmission oil x19"});iv.push({...i,task:"Front planetaries oil",parts:"Front planetaries oil x13.4"})});
+  try{await S.db.doc("machines/"+m.id).update({fluids:fl,intervals:iv})}catch(e){}finally{splitting=false}
+}
+
 /* ---------- boot ---------- */
 (async()=>{
   const me=await requireMember();
@@ -724,7 +763,7 @@ async function scanLabels(s){
     renderList();renderDetail()}};
   $("#oilsBtn").hidden=false;
   db.collection("oils").onSnapshot(s=>{S.oils=s.docs.map(d=>({id:d.id,...d.data()}));if(S.ready)renderDetail()},()=>{});
-  db.collection("machines").onSnapshot(s=>{S.machines=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));gotM=true;done()},
+  db.collection("machines").onSnapshot(s=>{S.machines=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));gotM=true;done();if(S.isAdmin)splitTransPlan()},
     ()=>{gotM=true;done()});
   db.collection("logs").onSnapshot(s=>{S.logs=s.docs.map(d=>({id:d.id,...d.data()}));gotL=true;done()},
     ()=>{gotL=true;done()});

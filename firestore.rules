@@ -74,8 +74,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     // Prices: admin only, never visible to staff or family.
+    // Staff may ENTER a sold price for a load or out load (ids d_… / o_…) but can never read prices back.
     match /grain_pricing/{id} {
-      allow read, write: if isAdmin();
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin()
+        || (canWork() && id.matches('^[do]_.+') && request.resource.data.keys().hasOnly(['v']) && request.resource.data.v is number);
     }
 
     // ---- Chemical Costs ----

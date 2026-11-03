@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611031920";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611032003";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -746,6 +746,20 @@ async function splitTransPlan(){
   try{await S.db.doc("machines/"+m.id).update({fluids:fl,intervals:iv})}catch(e){}finally{splitting=false}
 }
 
+/* one-time update: make sure these video links are on the machine (added only if missing) */
+const ADD_VIDEOS=[{match:/7230/,videos:[
+  {title:"Case IH 7230 video playlist (YouTube)",url:"https://youtube.com/playlist?list=PL2PndQdkNRHGXLR-1ukWqTTXX_xKZqSV3",notes:""},
+  {title:"Case IH 7230 video (YouTube)",url:"https://youtu.be/WmhqxvHQY8w",notes:""}]}];
+let addingV=false;
+async function addVideos(){
+  if(addingV)return;
+  for(const r of ADD_VIDEOS){const m=S.machines.find(x=>r.match.test(String(x.name||"")+" "+String(x.model||"")));if(!m)continue;
+    const vid=u=>{const x=String(u).match(/(?:list=|youtu\.be\/|v=)([\w-]+)/);return x?x[1]:u};
+    const have=new Set((m.videos||[]).map(v=>vid(v.url)));const add=r.videos.filter(v=>!have.has(vid(v.url)));
+    if(!add.length)continue;addingV=true;
+    try{await S.db.doc("machines/"+m.id).update({videos:[...(m.videos||[]),...add]})}catch(e){}finally{addingV=false}}
+}
+
 /* ---------- boot ---------- */
 (async()=>{
   const me=await requireMember();
@@ -763,7 +777,7 @@ async function splitTransPlan(){
     renderList();renderDetail()}};
   $("#oilsBtn").hidden=false;
   db.collection("oils").onSnapshot(s=>{S.oils=s.docs.map(d=>({id:d.id,...d.data()}));if(S.ready)renderDetail()},()=>{});
-  db.collection("machines").onSnapshot(s=>{S.machines=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));gotM=true;done();if(S.isAdmin)splitTransPlan()},
+  db.collection("machines").onSnapshot(s=>{S.machines=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));gotM=true;done();if(S.isAdmin){splitTransPlan();addVideos()}},
     ()=>{gotM=true;done()});
   db.collection("logs").onSnapshot(s=>{S.logs=s.docs.map(d=>({id:d.id,...d.data()}));gotL=true;done()},
     ()=>{gotL=true;done()});

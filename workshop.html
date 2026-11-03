@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611032014";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611032332";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -396,7 +396,7 @@ function renderTab(m){
       :`<div class="empty">No service intervals set${S.canEdit?" — add them under Edit details, taken from the operator's manual":""}.</div>`}
     <h3 class="sec" style="margin:20px 0 8px">Oils, filters & belts</h3>
     ${fl.length?`<div class="tscroll"><table><thead><tr><th>Item</th><th>Oil / fluid spec</th><th>Qty / capacity</th><th>Part numbers</th><th class="pc">Price ex GST</th></tr></thead><tbody>
-      ${fl.map(f=>`<tr><td>${esc(f.system)}</td><td>${f.spec?`<div class="note">Recommended</div>${esc(f.spec)}`:""}${oilNote(f)}</td><td class="num">${esc(f.qty)}</td><td class="mono">${partList(f.filter)}</td><td class="num pc">${rowPrice(f)!=null?money(rowPrice(f))+(f.per==="L"?"/L":""):"—"}</td></tr>`).join("")}</tbody></table></div><div class="note pc" style="margin-top:6px">Prices are what was last paid, ex GST. Oils linked to Farm oils use the farm price per litre. Service costs above are worked out from these.</div>`
+      ${fl.map((f,i)=>`<tr><td>${esc(f.system)}</td><td>${f.spec?`<div class="note">Recommended</div>${esc(f.spec)}`:""}${S.canEdit&&(f.per==="L"||f.oilId)?`<label class="note" style="margin-top:4px">Farm oil<select data-floil="${i}" aria-label="Farm oil for ${esc(f.system)}">${oilOptions(f)}</select></label>${(()=>{const o=oilById(f.oilId);return o&&o.grade&&f.spec&&!oilMatches(o,f.spec)?'<span class="chip warn">Check grade</span>':""})()}`:oilNote(f)}</td><td class="num">${esc(f.qty)}</td><td class="mono">${partList(f.filter)}</td><td class="num pc">${rowPrice(f)!=null?money(rowPrice(f))+(f.per==="L"?"/L":""):"—"}</td></tr>`).join("")}</tbody></table></div><div class="note pc" style="margin-top:6px">Prices are what was last paid, ex GST. Oils linked to Farm oils use the farm price per litre. Service costs above are worked out from these.</div>`
       :`<div class="empty">No oils, filters or belts entered${S.canEdit?" — add them under Edit details":""}.</div>`}
     ${m.notes?`<h3 class="sec" style="margin:20px 0 8px">Notes</h3><div style="white-space:pre-wrap">${esc(m.notes)}</div>`:""}`;
   } else if(S.tab==="history"){
@@ -434,6 +434,7 @@ function renderTab(m){
 $("#detail").addEventListener("click",async e=>{
   const t=e.target.closest("[data-tab]");if(t){S.tab=t.dataset.tab;renderDetail();return}
   const mm=S.machines.find(x=>x.id===S.sel);
+  if(e.target.closest("[data-floil]"))return;
   const slc=e.target.closest("[data-sl]");if(slc&&mm){const iv=(mm.intervals||[])[+slc.dataset.sl];if(iv)SL.toggle(mm.id,iv.task);return}
   const sv=e.target.closest("[data-sv]");if(sv&&mm){openService(mm,+sv.dataset.sv);return}
   const pd=e.target.closest("[data-pdel]");if(pd&&mm){if(pd.dataset.armed!=="1"){pd.dataset.armed="1";pd.textContent="Tap again";return}
@@ -445,6 +446,11 @@ $("#detail").addEventListener("click",async e=>{
   const r=e.target.closest("[data-resolve]");
   if(r){r.disabled=true;try{await S.db.doc("logs/"+r.dataset.resolve).update({resolved:true,resolvedDate:today()});toast("Marked fixed")}catch(err){r.disabled=false;writeFail(err)}}
 });
+$("#detail").addEventListener("change",async e=>{const sel=e.target.closest("[data-floil]");if(!sel||!S.canEdit)return;
+  const m=S.machines.find(x=>x.id===S.sel);if(!m)return;const i=+sel.dataset.floil;
+  const fl=(m.fluids||[]).map((f,j)=>j===i?{...f,oilId:sel.value}:f);sel.disabled=true;
+  try{await S.db.doc("machines/"+m.id).update({fluids:fl});const o=oilById(sel.value);toast(o?`${(m.fluids[i]||{}).system}: ${o.name}`:"Farm oil removed")}
+  catch(err){sel.disabled=false;writeFail(err)}});
 $("#detail").addEventListener("input",e=>{if(e.target.id!=="pq")return;const q=e.target.value.trim().toLowerCase();
   document.querySelectorAll("#tabBody tr[data-ptxt]").forEach(r=>{r.hidden=!!q&&!r.dataset.ptxt.includes(q)})});
 $("#detail").addEventListener("submit",async e=>{if(e.target.id!=="padd")return;e.preventDefault();
@@ -585,8 +591,13 @@ const oilMatches=(o,spec)=>!!(o&&spec&&((o.grade&&norm(spec).includes(norm(o.gra
 function oilNote(f){const o=oilById(f.oilId);if(!o)return "";
   const bad=o.grade&&f.spec&&!oilMatches(o,f.spec);
   return `<div class="note" style="margin-top:3px">Using: <b>${esc(o.name)}</b>${bad?` <span class="chip warn">Check grade</span>`:""}</div>`}
-function oilSelect(c,r){const os=S.oils.map(o=>({o,m:oilMatches(o,r.spec)})).sort((a,b)=>b.m-a.m||(a.o.name||"").localeCompare(b.o.name||""));
-  return `<select data-f="${c.f}" aria-label="${esc(c.l)}"><option value="">${S.oils.length?"Oil from farm store…":"No farm oils yet"}</option>${os.map(({o,m})=>`<option value="${esc(o.id)}"${r.oilId===o.id?" selected":""}>${m?"✓ ":""}${esc(o.name)}${num(o.price)!=null?" – "+money(o.price)+"/L":""}</option>`).join("")}</select>`}
+function oilOptions(r){
+  const opt=o=>`<option value="${esc(o.id)}"${r.oilId===o.id?" selected":""}>${oilMatches(o,r.spec)?"✓ ":""}${esc(o.name)}${S.isAdmin&&num(o.price)!=null?" – "+money(o.price)+"/L":""}</option>`;
+  const groups=[...OIL_TYPES,""].map(t=>({t,os:S.oils.filter(o=>(o.type||"")===t||(!t&&!OIL_TYPES.includes(o.type||"")))
+    .sort((a,b)=>oilMatches(b,r.spec)-oilMatches(a,r.spec)||(a.name||"").localeCompare(b.name||""))})).filter(g=>g.os.length);
+  return `<option value="">${S.oils.length?"Choose from farm oils…":"No farm oils yet"}</option>`+groups.map(g=>`<optgroup label="${esc(g.t||"Other")}">${g.os.map(opt).join("")}</optgroup>`).join("");
+}
+function oilSelect(c,r){return `<select data-f="${c.f}" aria-label="${esc(c.l)}">${oilOptions(r)}</select>`}
 function rowHtml(cols,r,ph){return `<div class="r">${cols.map(c=>c.oilSel?oilSelect(c,r):c.opts
   ?`<select data-f="${c.f}" aria-label="${esc(c.l)}">${c.opts.map(o=>`<option value="${o[0]}"${r[c.f]===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select>`
   :`<input data-f="${c.f}" aria-label="${esc(c.l)}" placeholder="${esc(c.l)}" value="${esc(r[c.f]??"")}"${c.n?' type="number" step="any"':""}>`).join("")}

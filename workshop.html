@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611042202";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611042226";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -609,12 +609,19 @@ const OIL_COLS=[{f:"name",l:"Name (e.g. Hi-Tech 15W-40)"},{f:"type",l:"Type",opt
 const IV_COLS=[{f:"task",l:"Task (e.g. Engine oil & filter)"},{f:"every",l:"Every",n:true},{f:"unit",l:"Unit",opts:[["hrs","hrs / km"],["months","months"]]},{f:"months",l:"or months",n:true},{f:"meter",l:"Counts on",opts:[["","Main meter"],["2","Second meter"]]},{f:"parts",l:"Parts used (e.g. Engine oil filter x1; Engine oil x15)"}];
 const MAN_COLS=[{f:"title",l:"Title"},{f:"kind",l:"Type",opts:[["Operator's manual","Operator's"],["Workshop manual","Workshop"],["Parts book","Parts book"],["Other","Other"]]},{f:"url",l:"Link (https://…)"}];
 const IDS_COLS=[{f:"label",l:"Label (e.g. Transmission no.)"},{f:"value",l:"Number"}];
+const VID_COLS=[{f:"title",l:"Title"},{f:"url",l:"Link (https://…)"},{f:"notes",l:"Notes"}];
 
 function openEditor(m){
   const isNew=!m; m=m||{intervals:[],fluids:[],manuals:[],otherIds:[],unit:"hrs"};
   const v=k=>esc(m[k]??"");
   const s=sheet(`<h2>${isNew?"Add machine":"Edit "+esc(m.name)}</h2>
   <form id="edForm" style="display:flex;flex-direction:column;gap:14px">
+    <div id="ed-scan" hidden style="border:2px dashed var(--line);border-radius:10px;padding:10px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>Fill in from a photo</b><span class="note">ID plate, compliance plate, rego label or VIN sticker</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn sun" id="ed-scan-cam">📷 Take photo</button><button type="button" class="btn" id="ed-scan-pick">🖼 Choose photo</button></div>
+      <input type="file" id="ed-scan-cam-in" accept="image/*" capture="environment" hidden><input type="file" id="ed-scan-pick-in" accept="image/*" hidden>
+      <div id="ed-scan-st" class="note" style="margin-top:6px"></div>
+    </div>
     <div class="grid2">
       <label>Name<input id="ed-name" required value="${v("name")}" placeholder="e.g. JD 8R tractor"></label>
       <label>Category<input id="ed-category" value="${v("category")}" list="catlist" placeholder="Tractor, Header, Truck…"></label>
@@ -646,7 +653,7 @@ function openEditor(m){
       <div style="display:flex;gap:8px"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" id="ed-save">Save</button></div>
     </div>
   </form>`);
-  const VID_COLS=[{f:"title",l:"Title"},{f:"url",l:"Link (https://…)"},{f:"notes",l:"Notes"}];
+  plateScan(s);
   const colsFor={"ed-ids":IDS_COLS,"ed-iv":IV_COLS,"ed-fl":FLUID_COLS,"ed-man":MAN_COLS,"ed-vid":VID_COLS};
   s.addEventListener("click",e=>{
     const a=e.target.closest("[data-addrow]");if(a){$("#"+a.dataset.addrow).insertAdjacentHTML("beforeend",rowHtml(colsFor[a.dataset.addrow],{}));return}
@@ -690,6 +697,26 @@ function openEditor(m){
   });
 }
 $("#addMachine").addEventListener("click",()=>openEditor(null));
+const PLATE_PROMPT=`This is a photo of an identification plate, compliance plate, registration label or VIN sticker on farm machinery or a vehicle in Australia (tractor, header, truck, ute, sprayer, seeder, etc). Read ONLY what is printed and reply with JSON only:
+{"make":"manufacturer/brand","model":"model name/number","year":"year of manufacture (4 digits) or empty","serial":"serial number, PIN or VIN","engineNo":"engine number","rego":"registration plate number","category":"one of Tractor, Header, Truck, Ute, Sprayer, Seeder, Loader, Trailer, Other — your best judgement from the make/model","otherIds":[{"label":"e.g. Transmission no., Chassis no., GVM, Build date, Product ID","value":"as printed"}],"notes":"anything unclear or partly unreadable"}
+Use "" for anything not printed or not readable. Never guess numbers.`;
+async function plateScan(s){const box=s.querySelector("#ed-scan");if(!box)return;const smp=await getScanner().catch(()=>null);if(!smp||!box.isConnected)return;box.hidden=false;
+  const st=s.querySelector("#ed-scan-st"),cam=s.querySelector("#ed-scan-cam-in"),pick=s.querySelector("#ed-scan-pick-in");
+  s.querySelector("#ed-scan-cam").onclick=()=>cam.click();s.querySelector("#ed-scan-pick").onclick=()=>pick.click();
+  const clean=v=>typeof v==="string"?v.trim().slice(0,120):(v==null?"":String(v).trim().slice(0,120));
+  const run=async e=>{const f=e.target.files[0];if(!f)return;st.textContent="Reading the plate… this can take up to a minute if Google is busy.";
+    try{const img=await shrinkPhoto(f),r=await smp.json(PLATE_PROMPT,{images:img}),filled=[],kept=[];
+      const put=(id,val,lbl)=>{val=clean(val);if(!val)return;const el=s.querySelector("#ed-"+id);if(!el)return;if(el.value.trim()&&el.value.trim()!==val){kept.push(`${lbl} (plate says ${val})`);return}el.value=val;filled.push(lbl)};
+      put("make",r.make,"make");put("model",r.model,"model");put("year",r.year,"year");put("serial",r.serial,"serial/VIN");put("engineNo",r.engineNo,"engine no.");put("rego",r.rego,"rego");put("category",r.category,"category");
+      const nm=s.querySelector("#ed-name");if(!nm.value.trim()&&(clean(r.make)||clean(r.model))){nm.value=[clean(r.make),clean(r.model)].filter(Boolean).join(" ");filled.push("name")}
+      const ids=s.querySelector("#ed-ids"),have=[...ids.querySelectorAll('.r [data-f="value"]')].map(i=>i.value.trim());
+      (Array.isArray(r.otherIds)?r.otherIds:[]).forEach(o=>{const l=clean(o&&o.label),v=clean(o&&o.value);if(!v||have.includes(v))return;
+        const blank=[...ids.querySelectorAll(".r")].find(x=>[...x.querySelectorAll("input[data-f]")].every(i=>!i.value));if(blank)blank.remove();
+        ids.insertAdjacentHTML("beforeend",rowHtml(IDS_COLS,{label:l||"ID",value:v}));filled.push(l||"ID")});
+      st.innerHTML=(filled.length?`✓ Filled in: <b>${esc(filled.join(", "))}</b>. `:"Nothing new could be read from that photo. ")+(kept.length?`Kept what you'd already typed for ${esc(kept.join("; "))}. `:"")+(clean(r.notes)?`Note: ${esc(clean(r.notes))}. `:"")+"Check everything against the plate, then tap Save."}
+    catch(er){st.textContent="Couldn't read that photo"+(er&&er.code&&er.code!=="error"?` (${er.code})`:"")+". Try a closer, straight-on, well-lit shot. Details for Claude: "+String(er&&er.message||er).slice(0,200)}
+    finally{e.target.value=""}};
+  cam.onchange=run;pick.onchange=run}
 async function shrinkPhoto(file){
   try{const bmp=await createImageBitmap(file);const k=Math.min(1,1400/Math.max(bmp.width,bmp.height));
     const c=document.createElement("canvas");c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);

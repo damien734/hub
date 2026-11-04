@@ -51,6 +51,7 @@ label.need input,label.need select{border:3px solid var(--bad);background:#fde8e
 button.sgn{min-width:48px;min-height:48px;border-radius:10px;border:2px solid var(--ok);background:var(--card);color:var(--ok);font-size:24px;font-weight:800;padding:0}
 button.sgn.neg{border-color:var(--bad);color:var(--bad)}
 svg.silo{width:30px;height:22px;vertical-align:-5px;margin-right:4px}
+.lvl{height:14px;background:var(--bd);border-radius:7px;overflow:hidden;min-width:70px}.lvl i{display:block;height:100%;border-radius:7px}
 .msg{padding:9px;border-radius:8px;margin:8px 0;font-size:14px;background:var(--card);border:1px solid var(--bd)}.err{color:var(--bad)}.ok{color:var(--ok);font-weight:700}
 .hide{display:none}button.x{background:none;border:0;color:var(--ac);padding:6px 10px;min-height:44px;font-weight:600}
 body.staff .own{display:none!important}
@@ -78,7 +79,7 @@ body.staff .staffnote{display:inline!important}
   <div id="cropBtns" class="seg"></div>
   <div class="grid">
    <label>Stored in<select id="f_store"></select></label>
-   <label>Site / silo / bag<select id="f_site"></select></label>
+   <label>Site / silo / bag<select id="f_site"></select><span id="siteHint" class="mut"></span></label>
   </div>
   <div id="addBox" class="row hide"><input id="addIn" style="flex:1"><select id="addCrop" class="hide"></select><button class="p" id="addOk">Add</button><button class="s" id="addNo">Cancel</button></div>
   <div class="grid">
@@ -165,13 +166,20 @@ body.staff .staffnote{display:inline!important}
   <div class="row"><button class="s hide" id="o_cancel">Cancel edit</button></div>
   <div id="o_toast" class="ok" style="margin-top:8px"></div>
  </div>
- <div id="o_stock"></div><div id="o_list"></div>
+ <div id="o_levels"></div><div id="o_stock"></div><div id="o_list"></div>
 </section>
 
 <section id="t-tot" class="hide">
  <div id="ngrTabs" class="seg hide"></div><div id="ngrNote" class="mut hide" style="margin:-4px 0 8px"></div>
- <div id="moneyTot" class="own"></div><div id="totals"></div><div id="stockTot"></div><div id="padTot"></div>
+ <div id="moneyTot" class="own"></div><div id="totals"></div><div id="levelTot"></div><div id="stockTot"></div><div id="padTot"></div>
  <div class="own">
+  <div class="card">
+   <span class="big">Silos &amp; bags</span>
+   <p class="mut">Add your silos and grain bags and put in how many tonnes each holds. Everyone then sees how full each one is.</p>
+   <div id="capMgr"></div>
+   <div class="grid"><label>Type<select id="cap_store"></select></label><label>Name<input id="cap_name" placeholder="e.g. Silo 3"></label><label>Capacity (t)<input id="cap_t" type="number" step="1" inputmode="decimal"></label></div>
+   <div class="row"><button class="s" id="cap_add">Add silo / bag</button></div>
+  </div>
   <div class="card">
    <div class="it"><span class="big">Paddock crops</span><label style="display:flex;align-items:center;gap:6px">Season<select id="pcYear" style="width:auto;min-height:40px"></select></label></div>
    <p class="mut">Set the grain in each paddock for the season and tap 🔓 to lock it. A locked paddock can't have a load of a different grain saved against it, and its crop is set automatically on the Add screen. Only admins can change or unlock these.</p>
@@ -205,7 +213,7 @@ body.staff .staffnote{display:inline!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611032332";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611042202";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -213,7 +221,7 @@ const money=n=>"$"+fmt(n,0);
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const num=id=>{const v=$(id).value;return v===""?null:Number(v)};
 const CROPS=["Wheat","Canola","Barley","Faba Beans"],DEF=["Receival site","Own silo","Grain bag"],GR={Wheat:["H1","H2","APW1","AH1","ASW1","Feed"],Barley:["Malt 1","Food 1","Feed 1","Feed 2"]};
-let NG=[],totNgr="",PN={},FM=[],PC={};
+let NG=[],totNgr="",PN={},FM=[],PC={},CAP={};
 let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={pcrops:{},paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
 const owner=()=>admin&&!pv;
 const adj=(crop,oil,p)=>crop==="Canola"&&oil!=null?p*(1+S.oilRate/100*(oil-S.oilBase)):p;
@@ -261,7 +269,7 @@ function showLock(){const pd=$("#f_paddock").value,lk=pcLock(pd,$("#f_date").val
 
 /* dropdown lists */
 const opts=(list,cur,ph,staffAdd)=>{const a=[...list];if(cur&&!a.includes(cur))a.push(cur);return (ph?`<option value="">${ph}</option>`:"")+a.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("")+(owner()||staffAdd?`<option value="__add">＋ Add new…</option>`:"")};
-function setSS(store,site){curStore=store;curSite=site||"";$("#f_store").innerHTML=opts(L.stores,store);$("#f_store").value=store;$("#f_site").innerHTML=opts(L.sites[store]||[],curSite,"— select —",true);$("#f_site").value=curSite}
+function setSS(store,site){setTimeout(siteHint,0);curStore=store;curSite=site||"";$("#f_store").innerHTML=opts(L.stores,store);$("#f_store").value=store;$("#f_site").innerHTML=opts(L.sites[store]||[],curSite,"— select —",true);$("#f_site").value=curSite}
 const padList=()=>[...new Set([...(L.paddocks||[]),...D.map(d=>d.paddock).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
 const pfarm=pd=>(L.pfarm||{})[pd]||"";
 const farmNgr=fm=>{const f=FM.find(x=>x.name===fm);return f&&f.ngr||""};
@@ -288,7 +296,7 @@ const fillSelects=()=>{setFarms();setSS(curStore||L.stores[0],curSite);setGrade(
 function setGrade(g){curGrade=g||"";$("#f_grade").innerHTML=opts(L.grades[$("#f_crop").value]||[],curGrade,"— select —");$("#f_grade").value=curGrade}
 function showAdd(k){addKind=k;$("#addIn").placeholder=k==="store"?"New storage type":k==="grade"?"New grade":k==="paddock"?"New paddock name":k==="rego"?"New truck rego":"New silo / bag name";$("#addIn").value="";$("#addCrop").value="";$("#addCrop").classList.toggle("hide",k!=="paddock");$("#addBox").classList.remove("hide");$("#addIn").focus()}
 $("#f_store").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("store");return}setSS(e.target.value,"")};
-$("#f_site").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("site");return}curSite=e.target.value};
+$("#f_site").onchange=e=>{if(e.target.value==="__add"){setSS(curStore,curSite);showAdd("site");return}curSite=e.target.value;siteHint()};
 $("#addNo").onclick=()=>$("#addBox").classList.add("hide");
 $("#f_grade").onchange=e=>{if(e.target.value==="__add"){setGrade(curGrade);showAdd("grade");return}curGrade=e.target.value;preview()};
 const saveL=async()=>{try{await db.doc("lists/main").set(L)}catch(e){status("Could not save the list.",true)}};
@@ -415,6 +423,8 @@ $("#saveDel").onclick=async()=>{const d=readDel();
   {const pn=padNgr(d.paddock),wk="n|"+d.paddock+"|"+d.ngr;if(pn&&d.ngr&&pn!==d.ngr&&padWarn!==wk){padWarn=wk;need("f_ngr",`Paddock ${d.paddock}${pfarm(d.paddock)?" ("+pfarm(d.paddock)+")":""} is linked to NGR ${ngrLbl(pn)}, but this load is NGR ${ngrLbl(d.ngr)}. Tap Save again if that is right.`);return}}
   {const c=C.find(x=>x.id===d.cid);if(c&&c.ngr&&d.ngr&&c.ngr!==d.ngr){need(["f_con","f_ngr"],`Contract ${c.no} is under NGR ${ngrLbl(c.ngr)}, but this load is NGR ${ngrLbl(d.ngr)}. Change one of them.`);return}}
   if(!d.paddock){need("f_paddock","Choose the paddock this load came from.");return}
+  if(onFarm(d)&&d.site){const x=levels().find(r=>r.store===d.store&&r.site===d.site),old=editD&&D.find(z=>z.id===editD),was=old&&old.store===d.store&&old.site===d.site?old.t:0;
+    if(x&&x.cap){const after=x.left-was+d.t,wk="cap|"+d.site+"|"+d.t;if(after>x.cap+0.005&&padWarn!==wk){padWarn=wk;need("f_site",`${d.site} only holds ${fmt(x.cap,0)} t. This load would take it to ${fmt(after,1)} t (${fmt(after/x.cap*100,0)}%). Tap Save again if that is right.`);return}}}
   {const lk=pcLock(d.paddock,d.date);if(lk&&lk!==d.crop){need("f_paddock",`🔒 Paddock ${d.paddock} is locked to ${lk} for ${yrOf(d.date)}, but this load is ${d.crop}. Pick the right paddock, or ask Damo or Carissa to change it.`);return}}
   {const pc=padCrop(d.paddock,d.date),wk=d.paddock+"|"+d.crop+"|"+yrOf(d.date);if(pc&&pc!==d.crop&&padWarn!==wk){padWarn=wk;need("f_paddock",`${d.paddock} is ${pc} this year, but this load is ${d.crop}. Tap Save again if that is right.`);return}}
   const nm=$("#f_name").value.trim();if(!nm){status("Your login has no name. Sign out and back in.",true);return}
@@ -536,7 +546,27 @@ function stockCard(rows,title){if(!rows.length)return `<p class="mut">Nothing st
   const body=split?groups.map(n=>{const a=rows.filter(s=>s.ngr===n);return `<tr><th colspan="5" style="text-align:left">${n?"NGR "+esc(ngrLbl(n)):"No NGR"}</th></tr>`+a.map(line).join("")+(groups.length>1?tot(a,"Subtotal"):"")}).join(""):rows.map(line).join("");
   return `<div class="card"><span class="big">${title||"Stored on farm"}</span><div class="wrap"><table><tr><th>Silo / bag</th><th>Crop</th><th>In</th><th>Out</th><th>Left</th></tr>`+body+tot(rows,"All")+`</table></div><p class="mut">Tonnes in are the loads stored in own silos and grain bags${split?", kept separate for each NGR":""}. Canola is counted as loaded; admixture is only worked out once it is at the receival site. Left = in minus out. Quality under each silo or bag comes from the dockets of grain that has gone out of it.</p></div>`}
 let editO=null;
-function renderOut(){const st=stock(),eo=editO&&O.find(x=>x.id===editO),has=st.filter(s=>s.left>0.005||(eo&&s.k===skey(eo))),cur=$("#o_src").value;
+/* silo / bag fill levels (capacity set by admins; shown to everyone) */
+const capKey=(st,si)=>st+"|"+si;
+const farmStores=()=>L.stores.filter(x=>!/receival/i.test(x));
+function levels(){const st=stock(),rows=[];farmStores().forEach(store=>{const sites=[...new Set([...(L.sites[store]||[]),...st.filter(x=>x.store===store).map(x=>x.site)])].filter(Boolean);
+  sites.forEach(site=>{const here=st.filter(x=>x.store===store&&x.site===site&&x.left>0.005),left=here.reduce((a,x)=>a+x.left,0),cap=Number(CAP[capKey(store,site)])||0;
+    rows.push({store,site,left,cap,crops:[...new Set(here.map(x=>x.crop))],pct:cap?left/cap*100:null})})});return rows}
+const lvlColour=p=>p>=95?"#c62828":p>=80?"#e09b1a":"#2e7d32";
+function levelsCard(){const r=levels().filter(x=>x.cap||x.left>0.005);if(!r.length)return "";
+  return `<div class="card"><span class="big">Silo &amp; bag levels</span><div class="wrap"><table><tr><th>Silo / bag</th><th>Holding</th><th>In it</th><th>Full</th></tr>`+r.map(x=>`<tr><td><b>${esc(x.site)}</b><div class="mut">${esc(x.store)}</div></td><td>${x.crops.length?esc(x.crops.join(", ")):`<span class="mut">empty</span>`}</td><td class="tn">${fmt(x.left,1)}${x.cap?` <span class="mut">of ${fmt(x.cap,0)} t</span>`:" t"}</td><td style="min-width:110px">${x.cap?`<div class="lvl"><i style="width:${Math.min(100,x.pct)}%;background:${lvlColour(x.pct)}"></i></div><b style="color:${lvlColour(x.pct)}">${fmt(x.pct,0)}%</b>${x.pct>100?" over":""}`:`<span class="mut">no capacity set</span>`}</td></tr>`).join("")+`</table></div></div>`}
+function siteHint(){const h=$("#siteHint");if(!h)return;const st=$("#f_store").value,si=$("#f_site").value;if(!si||/receival/i.test(st)||si==="__add"){h.textContent="";return}
+  const x=levels().find(r=>r.store===st&&r.site===si);if(!x){h.textContent="";return}h.innerHTML=x.cap?` <b style="color:${lvlColour(x.pct)}">${fmt(x.left,1)} of ${fmt(x.cap,0)} t · ${fmt(x.pct,0)}% full</b>`:` ${fmt(x.left,1)} t in it`}
+function renderCap(){const sel=$("#cap_store");if(!sel)return;const cur=sel.value;sel.innerHTML=farmStores().map(x=>`<option${x===cur?" selected":""}>${esc(x)}</option>`).join("");
+  const r=levels();$("#capMgr").innerHTML=r.length?`<div class="wrap"><table><tr><th>Silo / bag</th><th>Capacity (t)</th><th>Full</th></tr>`+r.map(x=>`<tr><td><b>${esc(x.site)}</b><div class="mut">${esc(x.store)}</div></td><td><input type="number" step="1" inputmode="decimal" style="width:110px;min-height:40px" data-cap="${esc(capKey(x.store,x.site))}" value="${x.cap||""}"></td><td>${x.cap?fmt(x.pct,0)+"%":"—"}</td></tr>`).join("")+`</table></div>`:`<p class="mut">No silos or bags yet.</p>`}
+const saveCAP=async next=>{try{await db.doc("settings/capacity").set({map:next});CAP=next;renderAll();return true}catch(e){status("Could not save capacity ("+(e.code||"error")+").",true);return false}};
+$("#capMgr").onchange=async e=>{const i=e.target.closest("[data-cap]");if(!i)return;const v=i.value===""?null:Number(i.value);if(v!=null&&(!isFinite(v)||v<0)){status("Capacity must be a number of tonnes.",true);return}
+  const next={...CAP};if(v)next[i.dataset.cap]=v;else delete next[i.dataset.cap];if(await saveCAP(next))status(`Capacity saved for ${i.dataset.cap.split("|")[1]}.`)};
+$("#cap_add").onclick=async()=>{const store=$("#cap_store").value,name=$("#cap_name").value.trim(),t=$("#cap_t").value===""?null:Number($("#cap_t").value);
+  if(!store){status("Add an on-farm storage type first (e.g. Own silo).",true);return}if(!name){status("Enter the silo or bag name.",true);return}
+  L.sites[store]=L.sites[store]||[];if(!L.sites[store].includes(name))L.sites[store].push(name);await saveL();
+  if(t)await saveCAP({...CAP,[capKey(store,name)]:t});$("#cap_name").value="";$("#cap_t").value="";status(`${name} added to ${store}.`);renderAll()};
+function renderOut(){$("#o_levels").innerHTML=levelsCard();renderCap();siteHint();const st=stock(),eo=editO&&O.find(x=>x.id===editO),has=st.filter(s=>s.left>0.005||(eo&&s.k===skey(eo))),cur=$("#o_src").value;
   $("#o_src").innerHTML=`<option value="">— select silo / bag —</option>`+has.map(s=>`<option value="${esc(s.k)}">${sname(s)} · ${esc(s.crop)}${s.ngr?" · NGR "+esc(ngrLbl(s.ngr)):""} · ${fmt(s.left+(eo&&s.k===skey(eo)?eo.t:0))} t left</option>`).join("");
   $("#o_src").value=has.some(s=>s.k===cur)?cur:"";
   const dc=$("#o_dest").value,ds=[...new Set(L.stores.filter(x=>/receival/i.test(x)).flatMap(x=>L.sites[x]||[]))];
@@ -596,7 +626,7 @@ function renderMoney(){const box=$("#moneyTot");if(!owner()){box.innerHTML="";re
   const tr=ks.map(k=>{const x=by[k],sh=shareOf(k);S2.t+=x.t;S2.wh+=x.wh;S2.v+=x.v;S2.o+=x.v*sh/100;S2.u+=x.unpaid;S2.uo+=x.unpaid*sh/100;
     return `<tr><td>${k?esc(ngrLbl(k)):"No NGR"}${x.nv?`<div class="mut">${x.nv} load${x.nv>1?"s":""} with no price</div>`:""}</td><td class="tn">${fmt(x.t)}</td><td class="tn">${fmt(x.wh)}</td><td>${money(x.v)}</td><td>${pct(sh)}</td><td class="tn">${money(x.v*sh/100)}</td><td>${money(x.unpaid*sh/100)}</td></tr>`}).join("");
   box.innerHTML=`<div class="card"><span class="big">Money by NGR</span><div class="wrap"><table><tr><th>NGR</th><th>Sold t</th><th>Warehouse t</th><th>Total value</th><th>Our share</th><th>Ours</th><th>Ours still owing</th></tr>${tr}${ks.length>1?`<tr><th>All</th><th class="tn">${fmt(S2.t)}</th><th class="tn">${fmt(S2.wh)}</th><th>${money(S2.v)}</th><th></th><th class="tn">${money(S2.o)}</th><th>${money(S2.uo)}</th></tr>`:""}</table></div><p class="mut">Value uses each load's price, or its contract price if the load has none (canola adjusted for oil). "Still owing" is loads not yet marked paid. Grain in silos and bags counts once it goes out. Warehouse tonnes are at a receival site but not sold yet, so they have no value until you switch them to Sold. Admins only.</p></div>`}
-function renderStockTot(){renderMoney();const st=stock().filter(s=>s.inn>0&&(totNgr==="__none"?!s.ngr:!totNgr||s.ngr===totNgr));
+function renderStockTot(){renderMoney();$("#levelTot").innerHTML=levelsCard();const st=stock().filter(s=>s.inn>0&&(totNgr==="__none"?!s.ngr:!totNgr||s.ngr===totNgr));
   $("#stockTot").innerHTML=st.length?stockCard(st,totNgr?`Stored on farm · ${totNgr==="__none"?"No NGR":"NGR "+esc(ngrLbl(totNgr))}`:"Stored on farm"):""}
 function renderPad(){renderStockTot();const m={},D=totRows();D.forEach(d=>{const k=d.paddock||"No paddock",x=m[k]=m[k]||{n:0,c:{}};x.n++;x.c[d.crop]=(x.c[d.crop]||0)+cleanT(d)});
   const rows=Object.entries(m).sort((a,b)=>(a[0]==="No paddock")-(b[0]==="No paddock")||a[0].localeCompare(b[0]));
@@ -670,6 +700,7 @@ setCrop("Wheat");setSS(L.stores[0],"");mode();
   db.collection("outloads").onSnapshot(s=>{O=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.collection("contracts").onSnapshot(s=>{C=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.doc("settings/main").onSnapshot(s=>{if(s.exists)S={...S,...s.data()};renderAll()},()=>{});
+  db.doc("settings/capacity").onSnapshot(s=>{CAP=s.exists&&s.data().map?s.data().map:{};renderAll()},()=>{});
   db.doc("settings/padcrops").onSnapshot(s=>{PC=s.exists?(s.data()||{}):{};renderPC();showLock()},()=>{});
   db.doc("settings/farms").onSnapshot(s=>{FM=s.exists&&Array.isArray(s.data().list)?s.data().list:[];fillNgr();setPad(curPad)},()=>{});
   db.doc("settings/padngr").onSnapshot(s=>{PN=s.exists&&s.data().map?s.data().map:{};fillNgr()},()=>{});

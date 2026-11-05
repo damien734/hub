@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611050157";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611051219";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -293,6 +293,7 @@ function renderDetail(){
     <div class="acts">
       ${S.canWrite?`<button class="btn primary" data-act="log">Log a job</button><button class="btn hot" data-act="issue">Report a problem</button>`:""}
       ${S.canEdit?`<button class="btn" data-act="edit">Edit details</button>`:""}
+      ${m.make||m.model?`<a class="btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent([m.make,m.model,m.serial?"serial "+m.serial:"",m.year,"parts catalogue"].filter(Boolean).join(" "))}">🔍 Find parts</a>`:""}
     </div>
   </div>
   ${issues.length?`<div class="attn"><strong>${issues.length} open problem${issues.length>1?"s":""}:</strong> ${issues.map(i=>esc(i.title)).join("; ")}</div>`:""}
@@ -381,8 +382,9 @@ function openShopping(){
 }
 $("#slBtn").addEventListener("click",openShopping);
 function partRow(name,nums,price,notes,i){
-  return `<tr data-ptxt="${esc(String((name||"")+" "+(nums||"")+" "+(notes||"")).toLowerCase())}"><td>${esc(name)}</td><td class="mono">${partList(nums)||'<span class="note">—</span>'}</td><td class="num pc">${price!=null?money(price):"—"}</td><td class="note">${esc(notes)}</td>${S.canEdit?`<td>${i>=0?`<button type="button" class="btn small" data-pdel="${i}">Remove</button>`:""}</td>`:""}</tr>`}
-function partList(s){const p=String(s??"").split(/\s+or\s+|\s*[\n;]\s*/i).map(x=>x.trim()).filter(Boolean);
+  return `<tr data-ptxt="${esc(String((name||"")+" "+(nums||"")+" "+(notes||"")).toLowerCase())}"><td>${esc(name)}</td><td class="mono">${partList(nums)||'<span class="note">—</span>'}</td><td class="num pc">${price!=null?money(price):"—"}</td><td class="note">${esc(noMoney(notes))}</td>${S.canEdit?`<td>${i>=0?`<button type="button" class="btn small" data-pdel="${i}">Remove</button>`:""}</td>`:""}</tr>`}
+const noMoney=v=>S.isAdmin?String(v??""):String(v??"").replace(/\s*\((?:[^()]*?)\$\s?[\d,.]+[^()]*\)/g,"").replace(/\$\s?[\d,.]+/g,"").replace(/\s{2,}/g," ").trim();
+function partList(s){const p=noMoney(s).split(/\s+or\s+|\s*[\n;]\s*/i).map(x=>x.trim()).filter(Boolean);
   return p.length>1?`<ul class="parts">${p.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:esc(p[0]||"")}
 function renderTab(m){
   const b=$("#tabBody"); if(!b)return;
@@ -396,12 +398,12 @@ function renderTab(m){
       :`<div class="empty">No service intervals set${S.canEdit?" — add them under Edit details, taken from the operator's manual":""}.</div>`}
     <h3 class="sec" style="margin:20px 0 8px">Oils, filters & belts</h3>
     ${fl.length?`<div class="tscroll"><table><thead><tr><th>Item</th><th>Oil / fluid spec</th><th>Qty / capacity</th><th>Part numbers</th><th class="pc">Price ex GST</th></tr></thead><tbody>
-      ${fl.map((f,i)=>`<tr><td>${esc(f.system)}</td><td>${f.spec?`<div class="note">Recommended</div>${esc(f.spec)}`:""}${S.canEdit&&(f.per==="L"||f.oilId)?`<label class="note" style="margin-top:4px">Farm oil<select data-floil="${i}" aria-label="Farm oil for ${esc(f.system)}">${oilOptions(f)}</select></label>${(()=>{const o=oilById(f.oilId);return o&&o.grade&&f.spec&&!oilMatches(o,f.spec)?'<span class="chip warn">Check grade</span>':""})()}`:oilNote(f)}</td><td class="num">${esc(f.qty)}</td><td class="mono">${partList(f.filter)}</td><td class="num pc">${rowPrice(f)!=null?money(rowPrice(f))+(f.per==="L"?"/L":""):"—"}</td></tr>`).join("")}</tbody></table></div><div class="note pc" style="margin-top:6px">Prices are what was last paid, ex GST. Oils linked to Farm oils use the farm price per litre. Service costs above are worked out from these.</div>`
+      ${fl.map((f,i)=>`<tr><td>${esc(f.system)}</td><td>${f.spec?`<div class="note">Recommended</div>${esc(noMoney(f.spec))}`:""}${S.canEdit&&(f.per==="L"||f.oilId)?`<label class="note" style="margin-top:4px">Farm oil<select data-floil="${i}" aria-label="Farm oil for ${esc(f.system)}">${oilOptions(f)}</select></label>${(()=>{const o=oilById(f.oilId);return o&&o.grade&&f.spec&&!oilMatches(o,f.spec)?'<span class="chip warn">Check grade</span>':""})()}`:oilNote(f)}</td><td class="num">${esc(f.qty)}</td><td class="mono">${partList(f.filter)}</td><td class="num pc">${rowPrice(f)!=null?money(rowPrice(f))+(f.per==="L"?"/L":""):"—"}</td></tr>`).join("")}</tbody></table></div><div class="note pc" style="margin-top:6px">Prices are what was last paid, ex GST. Oils linked to Farm oils use the farm price per litre. Service costs above are worked out from these.</div>`
       :`<div class="empty">No oils, filters or belts entered${S.canEdit?" — add them under Edit details":""}.</div>`}
     <h3 class="sec" style="margin:20px 0 8px">Tyres</h3>
     ${(m.tyres||[]).length?`<div class="tscroll"><table><thead><tr><th>Position</th><th>Tyre size</th><th>Pressure</th><th>Notes</th></tr></thead><tbody>${m.tyres.map(t=>`<tr><td><b>${esc(t.pos)}</b></td><td class="mono">${esc(t.size)}</td><td class="num">${t.psi?esc(t.psi)+(/^[\d.]+$/.test(String(t.psi))?" psi":""):"—"}</td><td class="note">${esc(t.notes)}</td></tr>`).join("")}</tbody></table></div>`
       :`<div class="empty">No tyre sizes or pressures entered${S.canEdit?" — add them under Edit details":""}.</div>`}
-    ${m.notes?`<h3 class="sec" style="margin:20px 0 8px">Notes</h3><div style="white-space:pre-wrap">${esc(m.notes)}</div>`:""}`;
+    ${m.notes?`<h3 class="sec" style="margin:20px 0 8px">Notes</h3><div style="white-space:pre-wrap">${esc(noMoney(m.notes))}</div>`:""}`;
   } else if(S.tab==="history"){
     const logs=S.logs.filter(l=>l.machineId===m.id).sort((a,b)=>normD(b.date).localeCompare(normD(a.date))||(b.createdAt||0)-(a.createdAt||0));
     b.innerHTML=logs.length?`<div class="loglist">${logs.map(l=>`<div class="log ${esc(l.type)}">

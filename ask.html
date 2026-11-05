@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en-AU"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ask the farm</title>
+<meta name="theme-color" content="#39938E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gunnadoo">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+:root{--brand:#39938E;--brand-soft:#e3f1f0;--bg:#f5f3ee;--card:#fff;--ink:#1f2a2a;--muted:#667373;--line:#dcd8cf;--bad:#b4412f;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#141a1a;--card:#1d2525;--ink:#e8eeed;--muted:#9aa8a7;--line:#2f3a3a;--brand-soft:#1f3836}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:12px 16px 140px}
+a.hublink{display:inline-block;margin:4px 0 6px;font-weight:600;text-decoration:none;color:var(--brand)}
+h1{font-size:1.4rem;margin:2px 0}
+.mut{color:var(--muted);font-size:.9rem}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.chips button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:7px 12px;font:inherit;font-size:.88rem;cursor:pointer}
+.msg{margin:10px 0;padding:10px 13px;border-radius:14px;max-width:92%;white-space:normal;word-wrap:break-word}
+.msg.me{background:var(--brand);color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+.msg.bot{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.err{border-color:var(--bad);color:var(--bad)}
+.msg ul{margin:4px 0;padding-left:20px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.bar form{max-width:760px;margin:0 auto;display:flex;gap:8px}
+.bar input{flex:1;min-height:48px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;background:var(--bg);color:var(--ink)}
+.bar button{min-height:48px;border:0;border-radius:12px;background:var(--brand);color:#fff;font:inherit;font-weight:700;padding:0 18px}
+.bar button:disabled{opacity:.5}
+.dots::after{content:"…";animation:d 1s steps(3) infinite}@keyframes d{0%{content:"."}50%{content:".."}100%{content:"..."}}
+</style></head><body>
+<main>
+<a class="hublink" href="./">← Command Centre</a>
+<h1>💬 Ask the farm</h1>
+<div class="mut" id="sub">Loading farm records<span class="dots"></span></div>
+<div class="chips" id="chips"></div>
+<div id="chat"></div>
+</main>
+<div class="bar"><form id="f"><input id="q" placeholder="Ask about loads, silos, machines…" autocomplete="off" enterkeyhint="send"><button id="go" disabled>Ask</button></form></div>
+<script type="module">
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611051219";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today=()=>new Date().toLocaleDateString("en-CA");
+const r1=n=>n==null?null:Math.round(n*100)/100;
+let me=null,ai=null,DATA=null,history=[];
+
+/* ---------- read records the person's login can see ---------- */
+const once=col=>new Promise(res=>{let done=false,un=null;un=col.onSnapshot(s=>{if(done)return;done=true;res(s.docs.map(d=>({id:d.id,...d.data()})));setTimeout(()=>{try{un&&un()}catch(e){}},0)},()=>{if(!done){done=true;res([])}})});
+const getDoc=async(db,path)=>{try{const s=await db.doc(path).get();return s.exists?s.data():null}catch(e){return null}};
+
+async function load(){
+  const G=makeDb("grain_"),W=makeDb("workshop_"),CH=makeDb("chem_"),admin=me.role==="admin";
+  const [D,O,C,lists,ngrs,farms,padcrops,cap,main,M,LG,OI,PR,LB]=await Promise.all([
+    once(G.collection("deliveries")),once(G.collection("outloads")),once(G.collection("contracts")),
+    getDoc(G,"lists/main"),getDoc(G,"settings/ngrs"),getDoc(G,"settings/farms"),getDoc(G,"settings/padcrops"),getDoc(G,"settings/capacity"),getDoc(G,"settings/main"),
+    once(W.collection("machines")),once(W.collection("logs")),once(W.collection("oils")),once(CH.collection("products")),once(CH.collection("labels"))]);
+  const P={},SP={};let PU=[];
+  if(admin){(await once(G.collection("pricing"))).forEach(x=>{if(x.v!=null)P[x.id]=x.v;if(x.spreads)SP[x.id]=x.spreads});PU=await once(CH.collection("purchases"))}
+  const oilBase=(main&&main.oilBase)??42,oilRate=(main&&main.oilRate)??1.5;
+  const cleanT=d=>d.crop==="Canola"?d.t*(1-(d.adm||0)/100):d.t;
+  const spread=(cid,g)=>{const t=cid&&SP["c_"+cid];if(!t||!g)return 0;const k=Object.keys(t).find(x=>x.toLowerCase().replace(/[^a-z0-9]/g,"")===String(g).toLowerCase().replace(/[^a-z0-9]/g,""));return k?Number(t[k])||0:0};
+  const price=(d,out)=>{const own=P[(out?"o_":"d_")+d.id],base=own??(d.cid?P["c_"+d.cid]:null);if(base==null)return null;const p=base+spread(d.cid,d.grade);return d.crop==="Canola"&&d.oil!=null?p*(1+oilRate/100*(d.oil-oilBase)):p};
+  const sale=(d,out)=>d.sale||((P[(out?"o_":"d_")+d.id]!=null||d.cid)?"sold":"warehouse");
+  const ngrName=no=>{const n=(ngrs&&ngrs.list||[]).find(x=>x.no===no);return n?(n.name?`${n.name} (${n.no})`:n.no):(no||"")};
+  const conNo=id=>{const c=C.find(x=>x.id===id);return c?c.no:null};
+  const loads=D.map(d=>{const o={date:d.date,crop:d.crop,tonnes:d.t,clean_t:d.crop==="Canola"?r1(cleanT(d)):undefined,stored:d.store,site:d.site,paddock:d.paddock,farm:d.farm,ngr:ngrName(d.ngr),grade:d.grade,protein:d.prot,screenings:d.scr,oil:d.oil,admix:d.adm,moisture:d.moist,test_wt:d.tw,docket:d.docket,rego:d.rego,contract:conNo(d.cid),status:/receival/i.test(d.store||"")?sale(d):undefined,by:d.byName};
+    if(admin){const p=price(d);if(p!=null){o.price_per_t=r1(p);o.value=r1(p*cleanT(d))}o.paid=!!d.paid}return o});
+  const outs=O.map(d=>{const o={date:d.date,crop:d.crop,tonnes:d.t,from:`${d.store} – ${d.site}`,to:d.dest,ngr:ngrName(d.ngr),grade:d.grade,protein:d.prot,screenings:d.scr,oil:d.oil,admix:d.adm,moisture:d.moist,docket:d.docket,rego:d.rego,contract:conNo(d.cid),status:sale(d,true),by:d.byName};
+    if(admin){const p=price(d,true);if(p!=null){o.price_per_t=r1(p);o.value=r1(p*cleanT(d))}o.paid=!!d.paid}return o});
+  // on-farm stock = loads into silos/bags minus out loads
+  const stock={};const sk=d=>[d.store,d.site||"",d.crop].join(" | ");
+  D.filter(d=>!/receival/i.test(d.store||"")).forEach(d=>{const k=sk(d);(stock[k]=stock[k]||{in_t:0,out_t:0}).in_t+=d.t});
+  O.forEach(o=>{const k=sk(o);(stock[k]=stock[k]||{in_t:0,out_t:0}).out_t+=o.t});
+  const capMap=(cap&&cap.map)||{};
+  const silos=Object.entries(stock).map(([k,v])=>{const [store,site,crop]=k.split(" | "),c=Number(capMap[store+"|"+site])||null,left=r1(v.in_t-v.out_t);return {store,site,crop,in_t:r1(v.in_t),out_t:r1(v.out_t),left_t:left,capacity_t:c,pct_full:c?Math.round(left/c*100):null}});
+  const totals={};D.forEach(d=>{const k=d.crop;totals[k]=r1((totals[k]||0)+cleanT(d))});
+  const contracts=C.map(c=>{const del=[...D,...O].filter(d=>d.cid===c.id).reduce((a,d)=>a+cleanT(d),0),o={no:c.no,buyer:c.buyer,crop:c.crop,ngr:ngrName(c.ngr),deliver_to:c.loc,contract_t:c.qty,delivered_t:r1(del),remaining_t:r1(c.qty-del),payment_terms_days:c.terms};
+    if(admin){o.price_per_t=P["c_"+c.id]??null;if(SP["c_"+c.id])o.grade_spreads=SP["c_"+c.id];
+      const owing=[...D.map(d=>[d,false]),...O.map(d=>[d,true])].filter(([d])=>d.cid===c.id&&!d.paid).reduce((a,[d,out])=>{const p=price(d,out);return a+(p==null?0:p*cleanT(d))},0);o.owing=r1(owing)}return o});
+  // workshop
+  const num=v=>{const n=parseFloat(v);return isFinite(n)?n:null};
+  const machines=M.map(m=>({name:m.name,category:m.category,make:m.make,model:m.model,year:m.year,serial:m.serial,engine_no:m.engineNo,rego:m.rego,other_ids:m.otherIds,
+    reading:m.reading,reading_unit:m.unit==="km"?"km":"hrs",reading_date:m.readingDate,second_meter:m.meter2?{name:m.meter2,reading:m.reading2}:undefined,
+    services:(m.intervals||[]).map(iv=>{const every=num(iv.every),last=num(iv.lastAt),cur=iv.meter==="2"?num(m.reading2):num(m.reading),next=iv.unit!=="months"&&every&&last!=null?last+every:null;
+      return {task:iv.task,every:every?`${every} ${iv.unit==="months"?"months":(m.unit==="km"?"km":"hrs")}`:null,last_done_at:last,last_done_date:iv.lastDate,next_due_at:next,left:next!=null&&cur!=null?r1(next-cur):null}}),
+    fluids_filters:(m.fluids||[]).map(f=>{const o={item:f.system,spec:f.spec,qty:f.qty,part_numbers:f.filter};if(admin&&f.price!=null)o.price=f.price;return o}),
+    tyres:m.tyres,parts:(m.partsList||[]).map(p=>{const o={part:p.name,numbers:p.numbers,notes:p.notes};if(admin&&p.price!=null)o.price=p.price;return o}),
+    manuals:(m.manuals||[]).map(x=>({title:x.title,kind:x.kind,link:x.url})),notes:m.notes}));
+  const mName=id=>{const m=M.find(x=>x.id===id);return m?m.name:id};
+  const logs=LG.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,500).map(l=>({machine:mName(l.machineId),date:l.date,type:l.type==="issue"?(l.resolved?"problem (fixed)":"problem (open)"):l.type,what:l.title,details:l.details,parts:l.parts,reading:l.reading,done_by:l.doneBy}));
+  const oils=OI.map(o=>{const x={name:o.name,type:o.type,grade:o.grade,specs:o.specs,pack:o.pack};if(admin&&o.price!=null)x.price_per_L=o.price;return x});
+  const labels=Object.fromEntries(LB.map(l=>[l.id,l]));
+  const chemicals=PR.map(p=>{const l=labels[p.id]||{};return {name:p.name,active:p.active,unit:p.unit,label:{apvma:l.apvmaNo,crops:l.crops,rates:l.rates,withholding:l.whp,rainfast:l.rainfast,link:l.labelUrl,checked:l.checked}}});
+  let chem_spend;if(admin){const by={};PU.forEach(x=>{const p=PR.find(y=>y.id===x.productId),k=p?p.name:x.productId;const a=by[k]=by[k]||{qty:0,total_ex_gst:0,unit:p&&p.unit};a.qty=r1(a.qty+(+x.qty||0));a.total_ex_gst=r1(a.total_ex_gst+(+x.totalExGst||0))});chem_spend=by}
+  const noMoney=v=>typeof v==="string"?v.replace(/\s*\((?:[^()]*?)\$\s?[\d,.]+[^()]*\)/g,"").replace(/\$\s?[\d,.]+(?:\s?(?:\/\s?(?:L|t|each|ea))|\s?(?:ex|inc)\s?GST)?/gi,"").replace(/\s{2,}/g," ").trim()
+    :Array.isArray(v)?v.map(noMoney):v&&typeof v==="object"?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,noMoney(x)])):v;
+  DATA={today:today(),viewer:{name:me.name,role:me.role},grain:{crop_totals_t:totals,loads,out_loads:outs,silos_and_bags:silos,contracts,farms:(farms&&farms.list)||[],paddock_crops:padcrops||{},paddock_farms:(lists&&lists.pfarm)||{}},
+    workshop:{machines,history:logs,farm_oils:oils},chemicals:{products:chemicals,spend:chem_spend}};
+  if(!admin)DATA=noMoney(DATA);
+  const n=D.length+O.length;$("#sub").textContent=`${n} loads, ${M.length} machines, ${PR.length} chemicals loaded. Answers come only from your records.`;
+}
+
+/* ---------- ask ---------- */
+const rules=role=>`You are "Ask the farm", the assistant for Gunnadoo Grain, a dryland cropping and sheep farm near Culcairn NSW, Australia.
+Answer ONLY from the DATA below (the farm's own records). If the answer isn't in the data, say you can't see it in the records and suggest where it would be entered. Never make up numbers, dates, part numbers or label rates.
+Do arithmetic carefully from the records and briefly say what you added up. Tonnes as "t", money in AUD ex GST, Australian spelling, dates like 5 Nov 2026. Keep answers short and practical: a few lines or a short list.
+For chemical label questions, add: "Check the label before you spray."
+The person asking is ${me.name} (${role}).${role==="admin"?"":" They are not an owner: there are no prices or dollar figures in the data, so if asked about money, prices, contracts' value or costs, say only Damo and Carissa can see that."}
+Reply with JSON only: {"answer":"your answer, plain text; use '- ' for list items and **bold** sparingly"}`;
+function render(t){const lines=esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").split(/\n/);let h="",inL=false;
+  lines.forEach(l=>{if(/^\s*[-•]\s+/.test(l)){if(!inL){h+="<ul>";inL=true}h+="<li>"+l.replace(/^\s*[-•]\s+/,"")+"</li>"}else{if(inL){h+="</ul>";inL=false}h+=l?l+"<br>":"<br>"}});if(inL)h+="</ul>";return h.replace(/(<br>)+$/,"")}
+function bubble(cls,html){const d=document.createElement("div");d.className="msg "+cls;d.innerHTML=html;$("#chat").appendChild(d);d.scrollIntoView({behavior:"smooth",block:"end"});return d}
+async function ask(q){q=q.trim();if(!q||!DATA)return;$("#q").value="";$("#go").disabled=true;bubble("me",esc(q));const b=bubble("bot",'<span class="mut">Thinking<span class="dots"></span></span>');
+  const convo=history.slice(-6).map(x=>`${x.r==="me"?"Question":"Your answer"}: ${x.t}`).join("\n");
+  const prompt=`${rules(me.role)}\n\nDATA (JSON):\n${JSON.stringify(DATA)}\n\n${convo?"Earlier in this chat:\n"+convo+"\n\n":""}Question: ${q}`;
+  try{const r=await ai.json(prompt);const a=String(r&&r.answer||"").trim()||"Sorry, I couldn't work that out from the records.";b.innerHTML=render(a);history.push({r:"me",t:q},{r:"bot",t:a})}
+  catch(e){b.classList.add("err");b.textContent=e&&e.code==="busy"?"Google's AI is busy right now. Wait a minute and ask again.":"Sorry, something went wrong asking that. "+String(e&&e.message||e).slice(0,200)}
+  finally{$("#go").disabled=false;$("#q").focus()}}
+$("#f").onsubmit=e=>{e.preventDefault();ask($("#q").value)};
+
+(async()=>{
+  me=await requireMember();
+  const sug=me.role==="admin"
+    ?["How much is in each silo and bag?","What's still owing on contracts?","Which machines are due for a service?","How many tonnes of wheat so far, by paddock?","What did we spend on chemicals this season?"]
+    :["How much is in each silo and bag?","Which machines are due for a service?","What tyre pressures does the Puma run?","How many loads went out today?","What's the withholding period for our canola chemicals?"];
+  $("#chips").innerHTML=sug.map(s=>`<button type="button">${esc(s)}</button>`).join("");
+  $("#chips").onclick=e=>{const b=e.target.closest("button");if(b&&!$("#go").disabled)ask(b.textContent)};
+  ai=await getScanner();
+  if(!ai){$("#sub").textContent="The AI isn't available on this device right now.";return}
+  try{await load();$("#go").disabled=false;bubble("bot",`G'day ${esc(me.name)}. Ask me anything about the farm records: loads, silos, contracts${me.role==="admin"?", money":""}, machines, services, tyres or chemical labels.`)}
+  catch(e){$("#sub").textContent="Couldn't load the farm records: "+String(e&&e.message||e).slice(0,160)}
+})();
+</script></body></html>

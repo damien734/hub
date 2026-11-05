@@ -1,8 +1,8 @@
 // Gunnadoo Command Centre — main app.
 // Uses Firebase Auth (logins) + Cloud Firestore (data). No build step needed.
-import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES } from "./firebase-config.js?v=202611050157";
+import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES } from "./firebase-config.js?v=202611051219";
 // Auto-update: if a newer version of the site has been published, reload once to get it.
-const BUILD = "202611050157";
+const BUILD = "202611051219";
 (async () => {
   try {
     const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
@@ -191,6 +191,7 @@ async function renderHome() {
   app.innerHTML = `<h1>G'day ${esc(me.name)}</h1><p class="muted">Everything for running Gunnadoo Grain, in one spot.</p>
     <h2>Farm apps</h2><div class="tiles" id="tiles"></div>`;
   const builtIn = [
+    { icon: "💬", title: "Ask the farm", desc: me.role === "admin" ? "Ask about loads, silos, contracts, money, machines and chemicals" : "Ask about loads, silos, machines, services and chemical labels", href: "ask.html" },
     { icon: "🌾", title: "Harvest Grain Tracker", desc: me.role === "admin" ? "Loads, contracts, payments and totals" : "Log loads into silos, bags and receival sites", href: "grain.html" },
     { icon: "🔧", title: "Gunnadoo Workshop", desc: me.role === "admin" ? "Machinery, services, parts, oils and costs" : "Machinery, service schedules, parts and manuals", href: "workshop.html" },
     { icon: "🧪", title: me.role === "admin" ? "Chemical Costs & Labels" : "Chemical Labels", desc: me.role === "admin" ? "Chemical spend, invoices and label facts" : "Label facts, rates and withholding periods", href: "chemicals.html" },

@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611042226";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611050049";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -398,6 +398,9 @@ function renderTab(m){
     ${fl.length?`<div class="tscroll"><table><thead><tr><th>Item</th><th>Oil / fluid spec</th><th>Qty / capacity</th><th>Part numbers</th><th class="pc">Price ex GST</th></tr></thead><tbody>
       ${fl.map((f,i)=>`<tr><td>${esc(f.system)}</td><td>${f.spec?`<div class="note">Recommended</div>${esc(f.spec)}`:""}${S.canEdit&&(f.per==="L"||f.oilId)?`<label class="note" style="margin-top:4px">Farm oil<select data-floil="${i}" aria-label="Farm oil for ${esc(f.system)}">${oilOptions(f)}</select></label>${(()=>{const o=oilById(f.oilId);return o&&o.grade&&f.spec&&!oilMatches(o,f.spec)?'<span class="chip warn">Check grade</span>':""})()}`:oilNote(f)}</td><td class="num">${esc(f.qty)}</td><td class="mono">${partList(f.filter)}</td><td class="num pc">${rowPrice(f)!=null?money(rowPrice(f))+(f.per==="L"?"/L":""):"—"}</td></tr>`).join("")}</tbody></table></div><div class="note pc" style="margin-top:6px">Prices are what was last paid, ex GST. Oils linked to Farm oils use the farm price per litre. Service costs above are worked out from these.</div>`
       :`<div class="empty">No oils, filters or belts entered${S.canEdit?" — add them under Edit details":""}.</div>`}
+    <h3 class="sec" style="margin:20px 0 8px">Tyres</h3>
+    ${(m.tyres||[]).length?`<div class="tscroll"><table><thead><tr><th>Position</th><th>Tyre size</th><th>Pressure</th><th>Notes</th></tr></thead><tbody>${m.tyres.map(t=>`<tr><td><b>${esc(t.pos)}</b></td><td class="mono">${esc(t.size)}</td><td class="num">${t.psi?esc(t.psi)+(/^[\d.]+$/.test(String(t.psi))?" psi":""):"—"}</td><td class="note">${esc(t.notes)}</td></tr>`).join("")}</tbody></table></div>`
+      :`<div class="empty">No tyre sizes or pressures entered${S.canEdit?" — add them under Edit details":""}.</div>`}
     ${m.notes?`<h3 class="sec" style="margin:20px 0 8px">Notes</h3><div style="white-space:pre-wrap">${esc(m.notes)}</div>`:""}`;
   } else if(S.tab==="history"){
     const logs=S.logs.filter(l=>l.machineId===m.id).sort((a,b)=>normD(b.date).localeCompare(normD(a.date))||(b.createdAt||0)-(a.createdAt||0));
@@ -609,6 +612,8 @@ const OIL_COLS=[{f:"name",l:"Name (e.g. Hi-Tech 15W-40)"},{f:"type",l:"Type",opt
 const IV_COLS=[{f:"task",l:"Task (e.g. Engine oil & filter)"},{f:"every",l:"Every",n:true},{f:"unit",l:"Unit",opts:[["hrs","hrs / km"],["months","months"]]},{f:"months",l:"or months",n:true},{f:"meter",l:"Counts on",opts:[["","Main meter"],["2","Second meter"]]},{f:"parts",l:"Parts used (e.g. Engine oil filter x1; Engine oil x15)"}];
 const MAN_COLS=[{f:"title",l:"Title"},{f:"kind",l:"Type",opts:[["Operator's manual","Operator's"],["Workshop manual","Workshop"],["Parts book","Parts book"],["Other","Other"]]},{f:"url",l:"Link (https://…)"}];
 const IDS_COLS=[{f:"label",l:"Label (e.g. Transmission no.)"},{f:"value",l:"Number"}];
+const TYRE_POS=["Front","Rear single","Rear duals","Steer","Drive","Trailer","Spare","Other"];
+const TYRE_COLS=[{f:"pos",l:"Position",opts:TYRE_POS.map(x=>[x,x])},{f:"size",l:"Tyre size (e.g. 710/70R42)"},{f:"psi",l:"Pressure (psi)"},{f:"notes",l:"Notes (brand, road vs field pressure)"}];
 const VID_COLS=[{f:"title",l:"Title"},{f:"url",l:"Link (https://…)"},{f:"notes",l:"Notes"}];
 
 function openEditor(m){
@@ -643,6 +648,7 @@ function openEditor(m){
     <div><h3 style="margin-bottom:6px">Other ID numbers</h3>${rowsEditor("ed-ids",IDS_COLS,m.otherIds||[])}</div>
     <div><h3 style="margin-bottom:6px">Service intervals</h3>${rowsEditor("ed-iv",IV_COLS,(m.intervals||[]).map(x=>({...x,unit:x.unit==="months"?"months":"hrs"})))}</div>
     <div><h3 style="margin-bottom:6px">Oils, filters & belts</h3>${rowsEditor("ed-fl",FLUID_COLS,m.fluids||[])}</div>
+    <div><h3 style="margin-bottom:6px">Tyres</h3>${rowsEditor("ed-ty",TYRE_COLS,m.tyres||[])}</div>
     <div><h3 style="margin-bottom:6px">Manuals</h3>${rowsEditor("ed-man",MAN_COLS,(m.manuals||[]).map(x=>({...x,url:x.assetId?"(uploaded PDF)":x.url})))}
       ${false?`<label style="margin-top:8px">Upload a PDF manual<input type="file" id="ed-pdf" accept="application/pdf"></label><div id="ed-up" class="note"></div>`:""}</div>
     <div><h3 style="margin-bottom:6px">Video links</h3>${rowsEditor("ed-vid",VID_COLS,m.videos||[])}</div>
@@ -654,7 +660,7 @@ function openEditor(m){
     </div>
   </form>`);
   plateScan(s);
-  const colsFor={"ed-ids":IDS_COLS,"ed-iv":IV_COLS,"ed-fl":FLUID_COLS,"ed-man":MAN_COLS,"ed-vid":VID_COLS};
+  const colsFor={"ed-ids":IDS_COLS,"ed-iv":IV_COLS,"ed-fl":FLUID_COLS,"ed-man":MAN_COLS,"ed-vid":VID_COLS,"ed-ty":TYRE_COLS};
   s.addEventListener("click",e=>{
     const a=e.target.closest("[data-addrow]");if(a){$("#"+a.dataset.addrow).insertAdjacentHTML("beforeend",rowHtml(colsFor[a.dataset.addrow],{}));return}
     const d=e.target.closest("[data-delrow]");if(d)d.closest(".r").remove();
@@ -686,6 +692,7 @@ function openEditor(m){
       fluids:read("ed-fl").filter(r=>r.system||r.spec||r.qty||r.filter||r.price).map(r=>({...r,price:num(r.price)})),
       intervals:read("ed-iv").filter(r=>r.task).map(r=>{const prev=old.find(o=>o.task===r.task)||{};return {task:r.task,every:num(r.every),unit:r.unit,months:r.unit==="months"?null:num(r.months),meter:r.meter||"",parts:r.parts||"",lastAt:prev.lastAt??null,lastDate:prev.lastDate??null}}),
       manuals:read("ed-man").filter(r=>r.title||r.url||r.assetId).map(r=>r.assetId?{title:r.title,kind:r.kind,assetId:r.assetId}:{title:r.title,kind:r.kind,url:r.url})};
+    data.tyres=read("ed-ty").filter(r=>r.size||r.psi||r.notes).map(r=>({pos:r.pos||"Front",size:r.size||"",psi:r.psi||"",notes:r.notes||""}));
     data.videos=read("ed-vid").filter(r=>r.title||r.url).map(r=>({title:r.title,url:r.url,notes:r.notes||""}));
     const badV=data.videos.find(x=>!/^https?:\/\//i.test(x.url||""));
     if(badV){btn.disabled=false;const el=s.querySelector("#ed-err");el.hidden=false;el.textContent=`The video link for "${badV.title||"a video"}" needs to start with https://`;return}

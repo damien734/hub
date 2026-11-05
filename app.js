@@ -1,8 +1,8 @@
 // Gunnadoo Command Centre — main app.
 // Uses Firebase Auth (logins) + Cloud Firestore (data). No build step needed.
-import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES } from "./firebase-config.js?v=202611050049";
+import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES } from "./firebase-config.js?v=202611050157";
 // Auto-update: if a newer version of the site has been published, reload once to get it.
-const BUILD = "202611050049";
+const BUILD = "202611050157";
 (async () => {
   try {
     const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
@@ -491,6 +491,7 @@ function adminImport() {
     const f = e.target.files[0]; if (!f) return;
     let data;
     try { data = JSON.parse(await f.text()); } catch { info.innerHTML = `<p class="err">That file isn't a valid data file.</p>`; return; }
+    if (Array.isArray(data.workshop_merge)) return mergePreview(info, data.workshop_merge);
     const cols = Object.keys(data).filter((k) => IMPORTABLE.test(k) && data[k] && typeof data[k] === "object");
     const skipped = Object.keys(data).filter((k) => !cols.includes(k));
     if (!cols.length) { info.innerHTML = `<p class="err">Nothing in that file this site knows how to import.</p>`; return; }
@@ -544,4 +545,52 @@ function inviteDialog(name, email) {
     try { await navigator.clipboard.writeText(msg); toast("Copied"); }
     catch (e) { const t = dlg.querySelector("textarea"); t.focus(); t.select(); toast("Select the text and copy it"); }
   });
+}
+
+// ---------- workshop merge import: add specs + history to an existing machine (matched by name) ----------
+const mWords = (t) => String(t || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+async function findMachine(match) {
+  const want = mWords(match), snap = await getDocs(collection(db, "workshop_machines"));
+  const hit = snap.docs.find((d) => { const have = mWords(d.data().name + " " + (d.data().make || "") + " " + (d.data().model || "")); return want.every((w) => have.includes(w)); });
+  return hit ? { id: hit.id, data: hit.data() } : null;
+}
+function mergeRows(oldRows, newRows, key) {
+  const out = [...(oldRows || [])];
+  (newRows || []).forEach((r) => { const k = String(r[key] || "").toLowerCase(), i = out.findIndex((o) => String(o[key] || "").toLowerCase() === k);
+    if (i < 0) out.push(r);
+    else { const o = { ...out[i] }; Object.entries(r).forEach(([f, v]) => {
+      if (f === "lastAt") { if (v != null && (o.lastAt == null || Number(v) > Number(o.lastAt))) { o.lastAt = v; o.lastDate = r.lastDate ?? o.lastDate; } }
+      else if (f !== "lastDate" && (o[f] == null || o[f] === "") && v != null && v !== "") o[f] = v; }); out[i] = o; } });
+  return out;
+}
+async function mergePreview(info, list) {
+  const plan = [];
+  for (const m of list) plan.push({ m, found: await findMachine(m.match) });
+  info.innerHTML = `<p>This file adds specs and service history to:</p><ul>${plan.map(({ m, found }) =>
+    `<li><b>${esc(m.machine.name)}</b>: ${found ? `will be added to your existing machine <b>${esc(found.data.name)}</b> (nothing you've already typed is overwritten)` : "not found, so it will be created as a new machine"} · ${Object.keys(m.logs || {}).length} history entries</li>`).join("")}</ul>
+    <button class="btn" id="impGo">Import now</button> <span class="muted" id="impMsg"></span>`;
+  document.getElementById("impGo").onclick = async () => {
+    const btn = document.getElementById("impGo"), msg = document.getElementById("impMsg"); btn.disabled = true;
+    try {
+      let n = 0;
+      for (const { m, found } of plan) {
+        const nm = m.machine, id = found ? found.id : (m.id || mWords(nm.name).join("-") + "-" + Math.random().toString(36).slice(2, 6));
+        const old = found ? found.data : {}, merged = { ...old };
+        Object.entries(nm).forEach(([f, v]) => { if (["intervals", "fluids", "tyres", "otherIds", "manuals", "videos"].includes(f)) return;
+          if (f === "reading") { if (old.reading == null || old.reading === "" || Number(v) > Number(old.reading)) { merged.reading = v; merged.readingDate = nm.readingDate; } return; }
+          if (f === "readingDate") return;
+          if (old[f] == null || old[f] === "") merged[f] = v; });
+        merged.intervals = mergeRows(old.intervals, nm.intervals, "task");
+        merged.fluids = mergeRows(old.fluids, nm.fluids, "system");
+        merged.tyres = mergeRows(old.tyres, nm.tyres, "pos");
+        merged.otherIds = mergeRows(old.otherIds, nm.otherIds, "label");
+        if (nm.notes && old.notes && !String(old.notes).includes(nm.notes)) merged.notes = old.notes + "\n" + nm.notes;
+        await setDoc(doc(db, "workshop_machines", id), merged);
+        const batch = writeBatch(db);
+        Object.entries(m.logs || {}).forEach(([lid, l]) => { batch.set(doc(db, "workshop_logs", lid), { ...l, machineId: id }); n++; });
+        await batch.commit();
+      }
+      msg.textContent = `Done: ${plan.length} machine${plan.length > 1 ? "s" : ""} updated, ${n} history entries added.`; toast("Import finished");
+    } catch (ex) { btn.disabled = false; msg.innerHTML = `<span class="err">${esc(friendlyError(ex))}</span>`; }
+  };
 }

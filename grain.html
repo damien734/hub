@@ -95,7 +95,9 @@ body.staff .staffnote{display:inline!important}
    <label id="l_oil" class="hide">Oil %<input type="number" id="f_oil" step="0.1" inputmode="decimal"></label>
    <label id="l_adm" class="hide">Admixture %<input type="number" id="f_adm" step="0.01" inputmode="decimal"></label>
    <label id="l_moist" class="hide">Moisture %<input type="number" id="f_moist" step="0.1" inputmode="decimal"></label>
-   <label id="l_tw" class="hide">Test weight (kg/hl)<input type="number" id="f_tw" step="0.1" inputmode="decimal"></label>
+   <label id="l_tw" class="hide">TWT (kg/hl)<input type="number" id="f_tw" step="0.1" inputmode="decimal"></label>
+   <label id="l_ret" class="hide">Retention %<input type="number" id="f_ret" step="0.1" inputmode="decimal"></label>
+   <label id="l_fn" class="hide">Falling number (FN, sec)<input type="number" id="f_fn" step="1" inputmode="numeric"></label>
    <label>Contract / order no. (optional)<select id="f_con"></select></label>
    <label>Date<input type="date" id="f_date"></label>
    <div style="grid-column:1/-1"><label>Status</label><div class="seg" id="f_saleSeg" style="margin:4px 0 0"><button type="button" data-sale="warehouse"><svg class="silo" viewBox="0 0 40 28" aria-hidden="true"><path d="M3 10q6-8 12 0v16H3z" fill="#b8c4cc" stroke="#55626b"/><path d="M15 8q7-8 14 0v18H15z" fill="#d3dbe0" stroke="#55626b"/><path d="M29 12q5-6 9 0v14h-9z" fill="#b8c4cc" stroke="#55626b"/><path d="M3 16h12M15 15h14M29 18h9" stroke="#55626b" stroke-width=".8"/><path d="M1 26h38" stroke="#55626b" stroke-width="1.5"/></svg> Warehouse</button><button type="button" data-sale="sold">💲 Sold</button></div></div>
@@ -158,7 +160,9 @@ body.staff .staffnote{display:inline!important}
    <label id="lo_oil" class="hide">Oil %<input type="number" id="o_oil" step="0.1" inputmode="decimal"></label>
    <label id="lo_adm" class="hide">Admixture %<input type="number" id="o_adm" step="0.01" inputmode="decimal"></label>
    <label id="lo_moist" class="hide">Moisture %<input type="number" id="o_moist" step="0.1" inputmode="decimal"></label>
-   <label id="lo_tw" class="hide">Test weight (kg/hl)<input type="number" id="o_tw" step="0.1" inputmode="decimal"></label>
+   <label id="lo_tw" class="hide">TWT (kg/hl)<input type="number" id="o_tw" step="0.1" inputmode="decimal"></label>
+   <label id="lo_ret" class="hide">Retention %<input type="number" id="o_ret" step="0.1" inputmode="decimal"></label>
+   <label id="lo_fn" class="hide">Falling number (FN, sec)<input type="number" id="o_fn" step="1" inputmode="numeric"></label>
   </div>
   <div class="mut">Receival sites are the ones on the Add screen (Stored in: Receival site). Add new ones there.</div>
   <div id="o_prev" class="mut" style="margin-top:8px"></div>
@@ -213,7 +217,7 @@ body.staff .staffnote{display:inline!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611051219";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611062039";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -331,7 +335,7 @@ $("#listMgr").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
 /* form */
 function setCrop(c){$("#t-add .card").className="card cr-"+c.replace(/\s/g,"");$("#f_crop").value=c;document.querySelectorAll("#cropBtns button").forEach(b=>b.classList.toggle("on",b.dataset.c===c));cropFields()}
 function cropFields(){const c=$("#f_crop").value,wb=c==="Wheat"||c==="Barley",ca=c==="Canola";
-  $("#l_prot").classList.toggle("hide",!wb);$("#l_scr").classList.toggle("hide",!wb);$("#l_grade").classList.toggle("hide",!wb);setGrade("");$("#l_oil").classList.toggle("hide",!ca);$("#l_adm").classList.toggle("hide",!ca);$("#l_moist").classList.toggle("hide",!(wb||ca));$("#l_tw").classList.toggle("hide",!ca);if(owner()&&!editD){const lp=lastPrice(c);$("#f_price").value=lp??""}conOptions();preview()}
+  $("#l_prot").classList.toggle("hide",!wb);$("#l_scr").classList.toggle("hide",!wb);$("#l_grade").classList.toggle("hide",!wb);setGrade("");$("#l_oil").classList.toggle("hide",!ca);$("#l_adm").classList.toggle("hide",!ca);$("#l_moist").classList.toggle("hide",!(wb||ca));$("#l_tw").classList.toggle("hide",!(wb||ca||c==="Faba Beans"));$("#l_ret").classList.toggle("hide",c!=="Barley");$("#l_fn").classList.toggle("hide",c!=="Wheat");if(owner()&&!editD){const lp=lastPrice(c);$("#f_price").value=lp??""}conOptions();preview()}
 const vis=id=>!$(id).classList.contains("hide");
 const ngrLbl=no=>{const n=NG.find(x=>x.no===no);return n?(n.name?`${n.name} (${n.no})`:n.no):(no||"")};
 function ngrOpts(sel,cur){const a=[...NG];if(cur&&!a.some(x=>x.no===cur))a.push({no:cur,name:""});
@@ -381,7 +385,7 @@ $("#padFarmMgr").onchange=async e=>{const sel=e.target.closest("[data-pf]");if(!
   if(sel.value)L.pfarm[sel.dataset.pf]=sel.value;else delete L.pfarm[sel.dataset.pf];await saveL();status(`Paddock ${sel.dataset.pf} ${sel.value?"is on "+sel.value:"has no farm"}.`);setPad(curPad)};
 $("#f_ngr").onchange=()=>{try{localStorage.setItem("gt_ngr",$("#f_ngr").value)}catch(e){}conOptions()};
 function readDel(){return{farm:($("#f_farm").value||pfarm($("#f_paddock").value))||null,ngr:$("#f_ngr").value||null,date:$("#f_date").value,crop:$("#f_crop").value,store:$("#f_store").value,site:$("#f_site").value,docket:$("#f_docket").value.trim(),rego:$("#f_rego").value.trim().toUpperCase(),paddock:$("#f_paddock").value||null,t:num("#f_t"),
-  prot:vis("#l_prot")?num("#f_prot"):null,scr:vis("#l_scr")?num("#f_scr"):null,grade:vis("#l_grade")?($("#f_grade").value||null):null,oil:vis("#l_oil")?num("#f_oil"):null,adm:vis("#l_adm")?num("#f_adm"):null,moist:vis("#l_moist")?num("#f_moist"):null,tw:vis("#l_tw")?num("#f_tw"):null,cid:$("#f_con").value||null}}
+  prot:vis("#l_prot")?num("#f_prot"):null,scr:vis("#l_scr")?num("#f_scr"):null,grade:vis("#l_grade")?($("#f_grade").value||null):null,oil:vis("#l_oil")?num("#f_oil"):null,adm:vis("#l_adm")?num("#f_adm"):null,moist:vis("#l_moist")?num("#f_moist"):null,tw:vis("#l_tw")?num("#f_tw"):null,ret:vis("#l_ret")?num("#f_ret"):null,fn:vis("#l_fn")?num("#f_fn"):null,cid:$("#f_con").value||null}}
 let fSale="warehouse",oSale="warehouse";
 function setSale(which,v){if(which==="f"){fSale=v}else{oSale=v}
   document.querySelectorAll(`#${which}_saleSeg button`).forEach(b=>b.classList.toggle("on",b.dataset.sale===v));
@@ -407,7 +411,7 @@ $("#f_con").onchange=()=>{conUI("f");{const c=C.find(x=>x.id===$("#f_con").value
 function conOptions(){const sel=$("#f_con"),cur=sel.value,crop=$("#f_crop").value,ng=$("#f_ngr").value;
   sel.innerHTML=`<option value="">None / not contracted</option>`+C.filter(c=>c.crop===crop&&(!c.ngr||!ng||c.ngr===ng)).map(c=>`<option value="${c.id}">${esc(c.no)} – ${esc(c.buyer)} (${fmt(c.qty-delivered(c),0)} t left)</option>`).join("");sel.value=[...sel.options].some(o=>o.value===cur)?cur:"";conUI("f")}
 function fillFrom(d,full){if(full)setSale("f",saleOf(d));if(full&&!owner())$("#f_price").value="";setCrop(d.crop);setSS(d.store||L.stores[0],d.site||"");setGrade(full?d.grade:"");
-  $("#f_prot").value=full?(d.prot??""):"";$("#f_scr").value=full?(d.scr??""):"";$("#f_oil").value=full?(d.oil??""):"";$("#f_adm").value=full?(d.adm??""):"";$("#f_moist").value=full?(d.moist??""):"";$("#f_tw").value=full?(d.tw??""):"";
+  $("#f_prot").value=full?(d.prot??""):"";$("#f_scr").value=full?(d.scr??""):"";$("#f_oil").value=full?(d.oil??""):"";$("#f_adm").value=full?(d.adm??""):"";$("#f_moist").value=full?(d.moist??""):"";$("#f_tw").value=full?(d.tw??""):"";$("#f_ret").value=full?(d.ret??""):"";$("#f_fn").value=full?(d.fn??""):"";
   $("#f_con").value=d.cid||"";$("#f_price").value=owner()?((full?P["d_"+d.id]:(lastPrice(d.crop)??P["d_"+d.id]))??""):"";
   if(d.ngr)ngrOpts($("#f_ngr"),d.ngr);
   $("#f_docket").value=full?(d.docket||""):"";setRego($("#f_rego"),d.rego||"");if(FM.some(f=>f.name===d.farm))$("#f_farm").value=d.farm;setPad(full?d.paddock:"");$("#f_t").value=full?(d.t??""):"";if(full)$("#f_date").value=d.date;conUI("f");preview()}
@@ -441,14 +445,14 @@ $("#saveDel").onclick=async()=>{const d=readDel();
    rememberRego(d.rego);
    $("#toast").textContent=`Saved ✓ ${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}`;status("");clearNeed();
    bigSaved(old?"Load updated":"Load saved",`${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}${d.paddock?" · "+d.paddock:""}`);
-   endEdit();$("#f_docket").value="";$("#f_t").value="";$("#f_prot").value="";$("#f_scr").value="";$("#f_oil").value="";$("#f_adm").value="";$("#f_moist").value="";$("#f_tw").value="";setGrade("");setPad("");preview();$("#f_t").focus()}
+   endEdit();$("#f_docket").value="";$("#f_t").value="";$("#f_prot").value="";$("#f_scr").value="";$("#f_oil").value="";$("#f_adm").value="";$("#f_moist").value="";$("#f_tw").value="";$("#f_ret").value="";$("#f_fn").value="";setGrade("");setPad("");preview();$("#f_t").focus()}
   catch(e){status("Could not save ("+(e.code||"error")+"). Family logins are view only.",true)}};
 
 /* loads list */
 function renderDel(){
   const rows=[...D].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).filter((d,i)=>i<(owner()?500:60)||missingInfo(d).length);
   $("#delList").innerHTML=rows.length?rows.map(d=>{const c=C.find(x=>x.id===d.cid),v=owner()?val(d):null;
-   const q=[d.grade?`Grade ${esc(d.grade)}`:"",d.prot!=null?`Protein ${fmt(d.prot,1)}%`:"",d.scr!=null?`Screenings ${fmt(d.scr,1)}%`:"",d.oil!=null?`Oil ${fmt(d.oil,1)}%`:"",d.adm!=null?`Admix ${fmt(d.adm)}%`:"",d.moist!=null?`Moisture ${fmt(d.moist,1)}%`:"",d.tw!=null?`Test wt ${fmt(d.tw,1)} kg/hl`:""].filter(Boolean).join(" · ");
+   const q=[d.grade?`Grade ${esc(d.grade)}`:"",d.prot!=null?`Protein ${fmt(d.prot,1)}%`:"",d.scr!=null?`Screenings ${fmt(d.scr,1)}%`:"",d.oil!=null?`Oil ${fmt(d.oil,1)}%`:"",d.adm!=null?`Admix ${fmt(d.adm)}%`:"",d.moist!=null?`Moisture ${fmt(d.moist,1)}%`:"",d.tw!=null?`TWT ${fmt(d.tw,1)} kg/hl`:"",d.ret!=null?`Retention ${fmt(d.ret,1)}%`:"",d.fn!=null?`FN ${fmt(d.fn,0)}`:""].filter(Boolean).join(" · ");
    const mi=missingInfo(d);return `<div class="card cr-${d.crop.replace(/\s/g,"")}${mi.length?" flagged":""}">${flagHtml(mi)}<div class="it"><b>${esc(d.date)} · ${esc(d.crop)}</b><b>${fmt(d.t)} t${d.crop==="Canola"&&d.adm?` <span class="mut">(${fmt(cleanT(d))} clean)</span>`:""}</b></div>
    <div class="mut">${esc(d.store)}${d.site?" – "+esc(d.site):""}${d.docket?" · Docket "+esc(d.docket):""}${d.rego?" · Rego "+esc(d.rego):""}${d.farm?" · "+esc(d.farm):""}${d.paddock?" · Paddock "+esc(d.paddock):""}${d.ngr?" · NGR "+esc(ngrLbl(d.ngr)):""}</div>${owner()&&d.byName?`<div class="mut">Entered by ${esc(d.byName)}${d.editedBy&&d.editedBy!==d.byName?` · edited by ${esc(d.editedBy)}`:""}</div>`:""}${q?`<div>${q}</div>`:""}
    <div>${/receival/i.test(d.store||"")?`<span class="tag" style="font-weight:700">${saleOf(d)==="sold"?"💲 Sold":"🌾 Warehouse"}</span> `:""}${c?`<span class="tag">Contract ${esc(c.no)}</span>`:`<span class="tag">Uncontracted</span>`}${v!=null?` $${fmt(adjP(d))}/t${spreadFor(d.cid,d.grade)?` <span class="mut">(incl. ${spreadFor(d.cid,d.grade)>0?"+":"−"}$${fmt(Math.abs(spreadFor(d.cid,d.grade)))} ${esc(d.grade)} spread)</span>`:""} · ${money(v)}`:""}</div>
@@ -514,7 +518,7 @@ function renderTot(){
   const D=[...totRows(),...totOuts().flatMap(o=>[{...o,store:"Receival site",site:o.dest||"(site not set)",_out:true},{crop:o.crop,store:o.store,site:o.site,t:-o.t,_neg:true}])];
   $("#totals").innerHTML=[...new Set(D.map(d=>d.crop))].map(cr=>{const rows=D.filter(d=>d.crop===cr),g={};
    rows.forEach(d=>{const k=d.store+"|"+(d.site||"");(g[k]=g[k]||[]).push(d)});const nl=r=>r.filter(d=>!d._neg).length;
-   const cols=cr==="Canola"?[["oil","Oil %",1],["adm","Admix %",2],["moist","Moisture %",1],["tw","Test wt",1]]:(cr==="Wheat"||cr==="Barley")?[["prot","Protein %",1],["scr","Screenings %",2],["moist","Moisture %",1]]:[];
+   const cols=cr==="Canola"?[["oil","Oil %",1],["adm","Admix %",2],["moist","Moisture %",1],["tw","TWT",1]]:cr==="Wheat"?[["prot","Protein %",1],["scr","Screenings %",2],["moist","Moisture %",1],["tw","TWT",1],["fn","FN",0]]:cr==="Barley"?[["prot","Protein %",1],["scr","Screenings %",2],["ret","Retention %",1],["moist","Moisture %",1],["tw","TWT",1]]:cr==="Faba Beans"?[["tw","TWT",1]]:[];
    const cells=r=>cols.map(([k,,dp])=>{const a=wavg(r,k);return `<td>${a!=null?fmt(a,dp):"–"}</td>`}).join("");
    const sum=r=>r.reduce((a,d)=>a+cleanT(d),0),tot=sum(rows);
    const gl=(cr==="Wheat"||cr==="Barley")?Object.entries(rows.reduce((o,d)=>{const k=d.grade||"No grade";o[k]=(o[k]||0)+cleanT(d);return o},{})).filter(([,v])=>Math.abs(v)>0.005).map(([k,v])=>`${esc(k)} ${fmt(v)} t`).join(" · "):"";
@@ -524,9 +528,9 @@ function renderTot(){
   $("#s_base").value=S.oilBase;$("#s_rate").value=S.oilRate;$("#s_week").value=S.weekEnd;}
 $("#saveSet").onclick=async()=>{try{await db.doc("settings/main").set({oilBase:num("#s_base")??42,oilRate:num("#s_rate")??1.5,weekEnd:Number($("#s_week").value)});status("Settings saved.")}catch(e){status("Could not save settings.",true)}};
 $("#csv").onclick=async()=>{if(!dl){status("Download is not available in this view.",true);return}
-  const h=["ngr","farm","date","crop","storage","site","docket","rego","paddock","grade","net_t","clean_t","protein","screenings","oil","admix","moisture","test_weight","contract","price","adj_price","value","entered_by"],q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const rows=D.map(d=>{const c=C.find(x=>x.id===d.cid);return [d.ngr||"",d.farm||"",d.date,d.crop,d.store,d.site,d.docket,d.rego,d.paddock,d.grade,d.t,cleanT(d).toFixed(3),d.prot,d.scr,d.oil,d.adm,d.moist,d.tw,c?c.no:"",P["d_"+d.id],adjP(d)?.toFixed(2),val(d)?.toFixed(0),d.byName].map(q).join(",")});
-  O.forEach(o=>{const c=C.find(x=>x.id===o.cid);rows.push([o.ngr||"","",o.date,o.crop,"Out load from "+(o.site||o.store),o.dest||"",o.docket,o.rego,"",o.grade,o.t,cleanT(o).toFixed(3),o.prot,o.scr,o.oil,o.adm,o.moist,o.tw,c?c.no:"","",c&&P["c_"+c.id]!=null?adj(o.crop,o.oil,P["c_"+c.id]).toFixed(2):"",c?valC(o,c)?.toFixed(0):"",o.byName].map(q).join(","))});
+  const h=["ngr","farm","date","crop","storage","site","docket","rego","paddock","grade","net_t","clean_t","protein","screenings","oil","admix","moisture","test_weight","retention","falling_number","contract","price","adj_price","value","entered_by"],q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const rows=D.map(d=>{const c=C.find(x=>x.id===d.cid);return [d.ngr||"",d.farm||"",d.date,d.crop,d.store,d.site,d.docket,d.rego,d.paddock,d.grade,d.t,cleanT(d).toFixed(3),d.prot,d.scr,d.oil,d.adm,d.moist,d.tw,d.ret,d.fn,c?c.no:"",P["d_"+d.id],adjP(d)?.toFixed(2),val(d)?.toFixed(0),d.byName].map(q).join(",")});
+  O.forEach(o=>{const c=C.find(x=>x.id===o.cid);rows.push([o.ngr||"","",o.date,o.crop,"Out load from "+(o.site||o.store),o.dest||"",o.docket,o.rego,"",o.grade,o.t,cleanT(o).toFixed(3),o.prot,o.scr,o.oil,o.adm,o.moist,o.tw,o.ret,o.fn,c?c.no:"","",c&&P["c_"+c.id]!=null?adj(o.crop,o.oil,P["c_"+c.id]).toFixed(2):"",c?valC(o,c)?.toFixed(0):"",o.byName].map(q).join(","))});
   try{await dl.save({filename:"grain-deliveries.csv",data:[h.join(","),...rows].join("\n")})}catch(e){}};
 /* out loads: grain taken from own silos / bags */
 const onFarm=d=>!/receival/i.test(d.store||"");
@@ -536,8 +540,8 @@ function stock(){const m={},g=d=>m[skey(d)]=m[skey(d)]||{ngr:d.ngr||"",store:d.s
   return Object.entries(m).map(([k,v])=>({k,...v,left:v.inn-v.out})).sort((a,b)=>(a.ngr+"|"+a.store+a.site+a.crop).localeCompare(b.ngr+"|"+b.store+b.site+b.crop))}
 const sname=s=>esc(s.store)+(s.site?" – "+esc(s.site):"");
 function stockQual(s){const o=O.filter(x=>skey(x)===s.k),w=k=>{const a=o.filter(x=>x[k]!=null),t=a.reduce((y,x)=>y+x.t,0);return t?a.reduce((y,x)=>y+x[k]*x.t,0)/t:null};
-  const q=s.crop==="Canola"?[["oil","Oil",1],["adm","Adm",2],["moist","Mst",1]]:(s.crop==="Wheat"||s.crop==="Barley")?[["prot","Prot",1],["scr","Scr",2],["moist","Mst",1]]:[["moist","Mst",1]];
-  const parts=q.map(([k,l,dp])=>{const v=w(k);return v==null?"":`${l} ${fmt(v,dp)}%`}).filter(Boolean),gr=[...new Set(o.map(x=>x.grade).filter(Boolean))];
+  const q=s.crop==="Canola"?[["oil","Oil",1],["adm","Adm",2],["moist","Mst",1]]:s.crop==="Wheat"?[["prot","Prot",1],["scr","Scr",2],["moist","Mst",1],["fn","FN",0]]:s.crop==="Barley"?[["prot","Prot",1],["scr","Scr",2],["ret","Ret",1],["moist","Mst",1]]:[["tw","TWT",1]];
+  const parts=q.map(([k,l,dp])=>{const v=w(k);return v==null?"":`${l} ${fmt(v,dp)}${k==="fn"||k==="tw"?"":"%"}`}).filter(Boolean),gr=[...new Set(o.map(x=>x.grade).filter(Boolean))];
   return [...parts,...(gr.length?[gr.join("/")]:[])].join(" · ")}
 function stockCard(rows,title){if(!rows.length)return `<p class="mut">Nothing stored on farm${title?" for this NGR":""} yet.</p>`;
   const sum=(a,f)=>fmt(a.reduce((x,s)=>x+f(s),0)),line=s=>`<tr><td>${sname(s)}${stockQual(s)?`<div class="mut">${esc(stockQual(s))}</div>`:""}</td><td>${esc(s.crop)}</td><td class="tn">${fmt(s.inn)}</td><td class="tn">${fmt(s.out)}</td><td class="tn"><b>${fmt(Math.max(s.left,0))}</b></td></tr>`;
@@ -576,14 +580,14 @@ function renderOut(){$("#o_levels").innerHTML=levelsCard();renderCap();siteHint(
   const r=[...O].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).filter((o,i)=>i<40||missingInfo(o,true).length);
   $("#o_list").innerHTML=r.length?`<span class="big">Recent out loads</span>`+r.map(o=>`<div class="card cr-${esc(String(o.crop).replace(/\s/g,""))}${missingInfo(o,true).length?" flagged":""}">${flagHtml(missingInfo(o,true))}<div class="it"><b>${esc(o.date)} · ${esc(o.crop)}</b><b>${fmt(o.t)} t</b></div><div class="mut">From ${sname(o)}${o.dest?" → "+esc(o.dest):""}${o.docket?" · Docket "+esc(o.docket):""}${o.rego?" · Rego "+esc(o.rego):""}${o.ngr?" · NGR "+esc(ngrLbl(o.ngr)):""}</div>${oq(o)?`<div>${oq(o)}</div>`:`<div class="mut">No docket quality yet. Tap Edit to scan or enter it.</div>`}${owner()?`<div><span class="tag" style="font-weight:700">${saleOf({...o,_out:true})==="sold"?"💲 Sold":"🌾 Warehouse"}</span>${P["o_"+o.id]!=null?` $${fmt(P["o_"+o.id])}/t`:""} ${(()=>{const c=C.find(x=>x.id===o.cid);return c?`<span class="tag">Contract ${esc(c.no)}</span>${o.paid?" Paid ✓":""}`:`<span class="tag">Uncontracted</span>`})()}</div>`:""}${o.byName?`<div class="mut">Entered by ${esc(o.byName)}${o.editedBy&&o.editedBy!==o.byName?` · edited by ${esc(o.editedBy)}`:""}</div>`:""}<div class="row" style="margin-top:2px"><button class="x" data-oe="${o.id}">Edit</button>${owner()?`<button class="x" data-ox="${o.id}">Delete</button>`:""}</div></div>`).join(""):"";
   outPrev()}
-const oq=o=>[o.grade?`Grade ${esc(o.grade)}`:"",o.prot!=null?`Protein ${fmt(o.prot,1)}%`:"",o.scr!=null?`Screenings ${fmt(o.scr,1)}%`:"",o.oil!=null?`Oil ${fmt(o.oil,1)}%`:"",o.adm!=null?`Admix ${fmt(o.adm)}%`:"",o.moist!=null?`Moisture ${fmt(o.moist,1)}%`:"",o.tw!=null?`Test wt ${fmt(o.tw,1)}`:""].filter(Boolean).join(" · ");
+const oq=o=>[o.grade?`Grade ${esc(o.grade)}`:"",o.prot!=null?`Protein ${fmt(o.prot,1)}%`:"",o.scr!=null?`Screenings ${fmt(o.scr,1)}%`:"",o.oil!=null?`Oil ${fmt(o.oil,1)}%`:"",o.adm!=null?`Admix ${fmt(o.adm)}%`:"",o.moist!=null?`Moisture ${fmt(o.moist,1)}%`:"",o.tw!=null?`TWT ${fmt(o.tw,1)}`:"",o.ret!=null?`Retention ${fmt(o.ret,1)}%`:"",o.fn!=null?`FN ${fmt(o.fn,0)}`:""].filter(Boolean).join(" · ");
 const oSrc=()=>stock().find(x=>x.k===$("#o_src").value);
 const oAvail=s=>{const eo=editO&&O.find(x=>x.id===editO);return s.left+(eo&&skey(eo)===s.k?eo.t:0)};
 function oFields(){const s=oSrc(),c=s?s.crop:"",wb=c==="Wheat"||c==="Barley",ca=c==="Canola";
-  [["lo_prot",wb],["lo_scr",wb],["lo_grade",wb],["lo_oil",ca],["lo_adm",ca],["lo_moist",wb||ca],["lo_tw",ca]].forEach(([id,on])=>$("#"+id).classList.toggle("hide",!on));
+  [["lo_prot",wb],["lo_scr",wb],["lo_grade",wb],["lo_oil",ca],["lo_adm",ca],["lo_moist",wb||ca],["lo_tw",wb||ca||c==="Faba Beans"],["lo_ret",c==="Barley"],["lo_fn",c==="Wheat"]].forEach(([id,on])=>$("#"+id).classList.toggle("hide",!on));
   const g=$("#o_grade"),gv=g.value;g.innerHTML=`<option value="">— select —</option>`+(L.grades[c]||[]).map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join("");if(gv&&!(L.grades[c]||[]).includes(gv))g.insertAdjacentHTML("beforeend",`<option value="${esc(gv)}">${esc(gv)}</option>`);g.value=gv;
   const cs=$("#o_con"),cv=cs.value;cs.innerHTML=`<option value="">None / not contracted</option>`+C.filter(x=>x.crop===c&&(!x.ngr||!s||!s.ngr||x.ngr===s.ngr)).map(x=>`<option value="${x.id}">${esc(x.no)} – ${esc(x.buyer)} (${fmt(x.qty-delivered(x),0)} t left)</option>`).join("");cs.value=[...cs.options].some(o=>o.value===cv)?cv:"";conUI("o")}
-function oClear(){$("#o_con").value="";setSale("o","warehouse");["o_price","o_t","o_docket","o_prot","o_scr","o_oil","o_adm","o_moist","o_tw"].forEach(i=>$("#"+i).value="");$("#o_grade").value="";$("#o_con").value=""}
+function oClear(){$("#o_con").value="";setSale("o","warehouse");["o_price","o_t","o_docket","o_prot","o_scr","o_oil","o_adm","o_moist","o_tw","o_ret","o_fn"].forEach(i=>$("#"+i).value="");$("#o_grade").value="";$("#o_con").value=""}
 function oEndEdit(){editO=null;$("#oTitle").textContent="Out load";$("#o_save").textContent="Save out load";$("#o_cancel").classList.add("hide")}
 $("#o_cancel").onclick=()=>{oEndEdit();oClear();renderOut()};
 function outPrev(){const s=oSrc(),t=num("#o_t");$("#o_prev").textContent=s&&t?`${fmt(Math.max(oAvail(s)-t,0))} t left in ${s.site||s.store} after this load${t>oAvail(s)+0.005?" (more than is stored)":""}`:""}
@@ -598,7 +602,7 @@ $("#o_save").onclick=async()=>{const s=stock().find(x=>x.k===$("#o_src").value),
   const ongr=s.ngr||null;
   const vq=id=>$("#lo_"+id.slice(2)).classList.contains("hide")?null:num("#"+id);
   const rec={ngr:ongr,date,crop:s.crop,store:s.store,site:s.site,t,dest:$("#o_dest").value.trim()||null,docket:$("#o_docket").value.trim(),rego:$("#o_rego").value.trim().toUpperCase(),
-    sale:oSale,cid:$("#o_con").value||null,prot:vq("o_prot"),scr:vq("o_scr"),oil:vq("o_oil"),adm:vq("o_adm"),moist:vq("o_moist"),tw:vq("o_tw"),grade:$("#lo_grade").classList.contains("hide")?null:($("#o_grade").value||null)};
+    sale:oSale,cid:$("#o_con").value||null,prot:vq("o_prot"),scr:vq("o_scr"),oil:vq("o_oil"),adm:vq("o_adm"),moist:vq("o_moist"),tw:vq("o_tw"),ret:vq("o_ret"),fn:vq("o_fn"),grade:$("#lo_grade").classList.contains("hide")?null:($("#o_grade").value||null)};
   {const c=C.find(x=>x.id===rec.cid);if(c&&c.ngr&&ongr&&c.ngr!==ongr){need("o_con",`Contract ${c.no} is under NGR ${ngrLbl(c.ngr)}, but this grain is NGR ${ngrLbl(ongr)}.`);return}}
   if(owner()&&oSale==="sold"&&num("#o_price")==null&&!rec.cid){need("o_price","Enter the sold price, or pick the contract it was sold on.");return}
   const old=editO&&O.find(x=>x.id===editO);let oid=old?old.id:null;
@@ -614,7 +618,7 @@ $("#o_list").onclick=async e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.oe){const o=O.find(x=>x.id===b.dataset.oe);if(!o)return;editO=o.id;renderOut();$("#o_src").value=skey(o);oFields();
     $("#o_t").value=o.t??"";setRego($("#o_rego"),o.rego||"");$("#o_docket").value=o.docket||"";$("#o_date").value=o.date||today();
     if(o.dest&&![...$("#o_dest").options].some(x=>x.value===o.dest))$("#o_dest").insertAdjacentHTML("beforeend",`<option value="${esc(o.dest)}">${esc(o.dest)}</option>`);$("#o_dest").value=o.dest||"";
-    ["prot","scr","oil","adm","moist","tw"].forEach(k=>$("#o_"+k).value=o[k]??"");oFields();$("#o_grade").value=o.grade||"";$("#o_con").value=o.cid||"";setSale("o",saleOf({...o,_out:true}));$("#o_price").value=owner()?(P["o_"+o.id]??""):"";conUI("o");
+    ["prot","scr","oil","adm","moist","tw","ret","fn"].forEach(k=>$("#o_"+k).value=o[k]??"");oFields();$("#o_grade").value=o.grade||"";$("#o_con").value=o.cid||"";setSale("o",saleOf({...o,_out:true}));$("#o_price").value=owner()?(P["o_"+o.id]??""):"";conUI("o");
     $("#oTitle").textContent="Edit out load";$("#o_save").textContent="Update out load";$("#o_cancel").classList.remove("hide");outPrev();$("#t-out").scrollIntoView({behavior:"smooth"});return}
   if(!b.dataset.ox)return;
   if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to delete";return}
@@ -636,7 +640,7 @@ function renderAll(){flagCounts();fillNgr();conOptions();renderDel();renderCon()
 
 /* docket scan */
 const DOCKET_PROMPT=`This is a photo of an Australian grain receival docket or weighbridge ticket. Extract the fields below and reply with JSON only, no other text. Use null for anything not clearly visible; never guess.
-{"date":"YYYY-MM-DD","crop":"Wheat|Canola|Barley|Faba Beans","docket":"docket or ticket number","rego":"truck registration","site":"receival site name","net_tonnes":number (net weight in tonnes; convert kg to tonnes),"protein":number,"screenings":number,"oil":number,"admixture":number (percent; may be labelled impurities or admix),"moisture":number,"test_weight":number (kg/hl; may be labelled TWT, TW or test wt),"grade":"string","contract_no":"string (the contract or order number, may be labelled contract, order, PO or delivery order no.)"}`;
+{"date":"YYYY-MM-DD","crop":"Wheat|Canola|Barley|Faba Beans","docket":"docket or ticket number","rego":"truck registration","site":"receival site name","net_tonnes":number (net weight in tonnes; convert kg to tonnes),"protein":number,"screenings":number,"oil":number,"admixture":number (percent; may be labelled impurities or admix),"moisture":number,"test_weight":number (kg/hl; may be labelled TWT, TW or test wt),"retention":number (barley retention %, may be labelled RET),"falling_number":number (wheat falling number in seconds, may be labelled FN or FALL NO),"grade":"string","contract_no":"string (the contract or order number, may be labelled contract, order, PO or delivery order no.)"}`;
 async function readDocket(f){let blob=f;
   try{const bm=await createImageBitmap(f),k=Math.min(1,1600/Math.max(bm.width,bm.height)),c=document.createElement("canvas");
    c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);c.getContext("2d").drawImage(bm,0,0,c.width,c.height);
@@ -662,7 +666,7 @@ $("#oScanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=
    if(!oSrc()){const st=stock().filter(x=>x.left>0.005&&(!r.crop||x.crop===r.crop));if(st.length===1){$("#o_src").value=st[0].k}else notes.push("Pick the silo or bag it came out of.")}
    oFields();const s=oSrc();if(s&&r.crop&&CROPS.includes(r.crop)&&r.crop!==s.crop)notes.push(`Docket says ${r.crop} but ${s.site||s.store} holds ${s.crop}. Check the silo or bag.`);
    if(r.date)$("#o_date").value=r.date;if(r.docket)$("#o_docket").value=r.docket;if(r.rego)setRego($("#o_rego"),String(r.rego).toUpperCase());if(r.net_tonnes!=null)$("#o_t").value=r.net_tonnes;
-   const set=(k,v)=>{if(v!=null)$("#o_"+k).value=v};set("prot",r.protein);set("scr",r.screenings);set("oil",r.oil);set("adm",r.admixture);set("moist",r.moisture);set("tw",r.test_weight);
+   const set=(k,v)=>{if(v!=null)$("#o_"+k).value=v};set("prot",r.protein);set("scr",r.screenings);set("oil",r.oil);set("adm",r.admixture);set("moist",r.moisture);set("tw",r.test_weight);set("ret",r.retention);set("fn",r.falling_number);
    if(r.grade){const c=s?s.crop:"";if(c==="Wheat"||c==="Barley"){const x=await ensureGrade(c,r.grade);oFields();$("#o_grade").value=x.g;notes.push(`Grade ${x.g} filled in${x.isNew?" (new grade, added to the list)":""}.`)}else notes.push(`Grade on docket: ${r.grade}.`)}
    let siteNew="";if(r.site){const nm=cleanName(r.site),hit=matchSite(nm);if(hit)$("#o_dest").value=hit;else if(nm)siteNew=nm}
    if(r.contract_no&&owner()){const c=C.find(x=>nnum(x.no)===nnum(r.contract_no));if(c&&[...$("#o_con").options].some(x=>x.value===c.id)){$("#o_con").value=c.id;notes.push(`Contract ${c.no} selected.`)}else notes.push(`Contract / order no. on docket: ${r.contract_no}${c?" (doesn't match this crop or NGR)":" (not in your contracts)"}.`)}
@@ -675,7 +679,7 @@ $("#scanIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;const m=$
    if(r.date)$("#f_date").value=r.date;if(CROPS.includes(r.crop))setCrop(r.crop);let gNote="";if(r.grade){const c=$("#f_crop").value;if(c==="Wheat"||c==="Barley"){const x=await ensureGrade(c,r.grade);setGrade(x.g);gNote=` Grade ${x.g} filled in${x.isNew?` (new ${c.toLowerCase()} grade, added to the list)`:""}.`}else gNote=` Grade on docket: ${r.grade}.`}
    let siteNew="";if(r.site){const nm=cleanName(r.site),hit=matchSite(nm);if(hit)setSS(recStore(),hit);else if(nm)siteNew=nm}
    if(r.docket)$("#f_docket").value=r.docket;if(r.rego)setRego($("#f_rego"),String(r.rego).toUpperCase());if(r.net_tonnes!=null)$("#f_t").value=r.net_tonnes;
-   if(r.protein!=null)$("#f_prot").value=r.protein;if(r.screenings!=null)$("#f_scr").value=r.screenings;if(r.oil!=null)$("#f_oil").value=r.oil;if(r.admixture!=null)$("#f_adm").value=r.admixture;if(r.moisture!=null)$("#f_moist").value=r.moisture;if(r.test_weight!=null)$("#f_tw").value=r.test_weight;
+   if(r.protein!=null)$("#f_prot").value=r.protein;if(r.screenings!=null)$("#f_scr").value=r.screenings;if(r.oil!=null)$("#f_oil").value=r.oil;if(r.admixture!=null)$("#f_adm").value=r.admixture;if(r.moisture!=null)$("#f_moist").value=r.moisture;if(r.test_weight!=null)$("#f_tw").value=r.test_weight;if(r.retention!=null)$("#f_ret").value=r.retention;if(r.falling_number!=null)$("#f_fn").value=r.falling_number;
    let cmsg="";if(r.contract_no){const c=C.find(x=>nnum(x.no)===nnum(r.contract_no));if(!c)cmsg=` Contract / order no. on docket: ${r.contract_no} (not in your contracts).`;if(c){if(c.crop!==$("#f_crop").value)setCrop(c.crop);if(c.ngr)ngrOpts($("#f_ngr"),c.ngr);conOptions();$("#f_con").value=c.id;cmsg=` Contract / order no. ${c.no} selected.`;const v=P["c_"+c.id];if(owner()&&v!=null&&!$("#f_price").value)$("#f_price").value=v}}
    preview();m.textContent="Docket read. Please check every field against the paper docket before saving."+gNote+cmsg+(r.moisture!=null&&!vis("#l_moist")?` Moisture: ${r.moisture}%.`:"")+(r.site&&!siteNew?` Site: ${$("#f_site").value}.`:"");
    if(siteNew)askNewSite(m,siteNew,nm=>setSS(recStore(),nm))}

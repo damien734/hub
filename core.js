@@ -1,7 +1,7 @@
 // Shared login + database helpers for the app pages (grain.html, chemicals.html).
-import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES, RECAPTCHA_SITE_KEY } from "./firebase-config.js?v=202611051219";
+import { firebaseConfig, OWNER_EMAILS, OWNER_NAMES, RECAPTCHA_SITE_KEY } from "./firebase-config.js?v=202611062039";
 // Auto-update: if a newer version of the site has been published, reload once to get it.
-const BUILD = "202611051219";
+const BUILD = "202611062039";
 (async () => {
   try {
     const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });

@@ -41,7 +41,7 @@ h1{font-size:1.4rem;margin:2px 0}
 </main>
 <div class="bar"><form id="f"><input id="q" placeholder="Ask about loads, silos, machines…" autocomplete="off" enterkeyhint="send"><button id="go" disabled>Ask</button></form></div>
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611062039";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611062050";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const today=()=>new Date().toLocaleDateString("en-CA");
@@ -67,9 +67,9 @@ async function load(){
   const sale=(d,out)=>d.sale||((P[(out?"o_":"d_")+d.id]!=null||d.cid)?"sold":"warehouse");
   const ngrName=no=>{const n=(ngrs&&ngrs.list||[]).find(x=>x.no===no);return n?(n.name?`${n.name} (${n.no})`:n.no):(no||"")};
   const conNo=id=>{const c=C.find(x=>x.id===id);return c?c.no:null};
-  const loads=D.map(d=>{const o={date:d.date,crop:d.crop,tonnes:d.t,clean_t:d.crop==="Canola"?r1(cleanT(d)):undefined,stored:d.store,site:d.site,paddock:d.paddock,farm:d.farm,ngr:ngrName(d.ngr),grade:d.grade,protein:d.prot,screenings:d.scr,oil:d.oil,admix:d.adm,moisture:d.moist,test_wt:d.tw,retention:d.ret,falling_number:d.fn,docket:d.docket,rego:d.rego,contract:conNo(d.cid),status:/receival/i.test(d.store||"")?sale(d):undefined,by:d.byName};
+  const loads=D.map(d=>{const o={date:d.date,crop:d.crop,variety:d.variety,tonnes:d.t,clean_t:d.crop==="Canola"?r1(cleanT(d)):undefined,stored:d.store,site:d.site,paddock:d.paddock,farm:d.farm,ngr:ngrName(d.ngr),grade:d.grade,protein:d.prot,screenings:d.scr,oil:d.oil,admix:d.adm,moisture:d.moist,test_wt:d.tw,retention:d.ret,falling_number:d.fn,docket:d.docket,rego:d.rego,contract:conNo(d.cid),status:/receival/i.test(d.store||"")?sale(d):undefined,by:d.byName};
     if(admin){const p=price(d);if(p!=null){o.price_per_t=r1(p);o.value=r1(p*cleanT(d))}o.paid=!!d.paid}return o});
-  const outs=O.map(d=>{const o={date:d.date,crop:d.crop,tonnes:d.t,from:`${d.store} – ${d.site}`,to:d.dest,ngr:ngrName(d.ngr),grade:d.grade,protein:d.prot,screenings:d.scr,oil:d.oil,admix:d.adm,moisture:d.moist,test_wt:d.tw,retention:d.ret,falling_number:d.fn,docket:d.docket,rego:d.rego,contract:conNo(d.cid),status:sale(d,true),by:d.byName};
+  const outs=O.map(d=>{const o={date:d.date,crop:d.crop,variety:d.variety,tonnes:d.t,from:`${d.store} – ${d.site}`,to:d.dest,ngr:ngrName(d.ngr),grade:d.grade,protein:d.prot,screenings:d.scr,oil:d.oil,admix:d.adm,moisture:d.moist,test_wt:d.tw,retention:d.ret,falling_number:d.fn,docket:d.docket,rego:d.rego,contract:conNo(d.cid),status:sale(d,true),by:d.byName};
     if(admin){const p=price(d,true);if(p!=null){o.price_per_t=r1(p);o.value=r1(p*cleanT(d))}o.paid=!!d.paid}return o});
   // on-farm stock = loads into silos/bags minus out loads
   const stock={};const sk=d=>[d.store,d.site||"",d.crop].join(" | ");

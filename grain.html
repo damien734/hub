@@ -52,6 +52,9 @@ button.sgn{min-width:48px;min-height:48px;border-radius:10px;border:2px solid va
 button.sgn.neg{border-color:var(--bad);color:var(--bad)}
 svg.silo{width:30px;height:22px;vertical-align:-5px;margin-right:4px}
 .lvl{height:14px;background:var(--bd);border-radius:7px;overflow:hidden;min-width:70px}.lvl i{display:block;height:100%;border-radius:7px}
+.pb{margin-top:6px;border:1px solid var(--bd);border-radius:8px;padding:6px 8px;background:var(--bg);font-size:14px}
+.pb .it{padding:1px 0}.pb .tot{border-top:1px solid var(--bd);margin-top:3px;padding-top:4px;font-weight:800}
+.pb .plus{color:var(--ok)}.pb .minus{color:var(--bad)}
 .msg{padding:9px;border-radius:8px;margin:8px 0;font-size:14px;background:var(--card);border:1px solid var(--bd)}.err{color:var(--bad)}.ok{color:var(--ok);font-weight:700}
 .hide{display:none}button.x{background:none;border:0;color:var(--ac);padding:6px 10px;min-height:44px;font-weight:600}
 body.staff .own{display:none!important}
@@ -219,7 +222,7 @@ body.staff .staffnote{display:inline!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611062050";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611101026";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -238,6 +241,19 @@ const nnorm=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,"");
 const pk=d=>(d._out?"o_":"d_")+d.id;
 const saleOf=d=>d.sale||((P[pk(d)]!=null||d.cid)?"sold":"warehouse");
 const basePrice=d=>{const own=P[pk(d)];if(own!=null)return own;const c=d.cid&&P["c_"+d.cid];return c==null?null:c};
+/* admin price breakdown: original price -> grade spread -> canola oil -> admixture -> received */
+function priceBreak(d,out){if(!owner())return "";const x=out?{...d,_out:true}:d,b=basePrice(x);if(b==null)return "";
+  const own=P[pk(x)]!=null,c=d.cid&&C.find(y=>y.id===d.cid),sp=spreadFor(d.cid,d.grade),afterSp=b+sp,fin=adj(d.crop,d.oil,afterSp),oilAmt=fin-afterSp;
+  const ct=cleanT(d),gross=Number(d.t)||0,admT=gross-ct,val=fin*ct,perGross=gross?val/gross:fin;
+  const sg=v=>(v>=0?"+":"−")+"$"+fmt(Math.abs(v)),cls=v=>v>=0?"plus":"minus";
+  const rows=[`<div class="it"><span>${own?"Sold price":"Contract "+esc(c?c.no:"")+" price"}</span><b>$${fmt(b)}/t</b></div>`];
+  if(sp)rows.push(`<div class="it"><span>${esc(d.grade)} grade spread</span><b class="${cls(sp)}">${sg(sp)}/t</b></div>`);
+  if(d.crop==="Canola"&&d.oil!=null&&Math.abs(oilAmt)>0.005)rows.push(`<div class="it"><span>Oil ${oilAmt>=0?"bonus":"deduction"} (${fmt(d.oil,1)}% vs ${fmt(S.oilBase,1)}% base)</span><b class="${cls(oilAmt)}">${sg(oilAmt)}/t</b></div>`);
+  if(!sp&&!(d.crop==="Canola"&&d.oil!=null&&Math.abs(oilAmt)>0.005))rows.push(`<div class="it mut"><span>No grade spread or oil adjustment</span><span></span></div>`);
+  rows.push(`<div class="it tot"><span>Received price</span><b>$${fmt(fin)}/t</b></div>`);
+  if(admT>0.0005)rows.push(`<div class="it"><span>Admixture ${fmt(d.adm,2)}%: paid on ${fmt(ct,2)} of ${fmt(gross,2)} t</span><b class="minus">−$${fmt(fin-perGross)}/t</b></div><div class="it tot"><span>Received per delivered tonne</span><b>$${fmt(perGross)}/t</b></div>`);
+  rows.push(`<div class="it"><span>Load value (${fmt(ct,2)} t)</span><b>${money(val)}</b></div>`);
+  return `<div class="pb">${rows.join("")}</div>`}
 const priceOf=d=>{const b=basePrice(d);return b==null?null:adj(d.crop,d.oil,b+spreadFor(d.cid,d.grade))};
 const adjP=d=>{const p=P[pk(d)];return p==null?null:adj(d.crop,d.oil,p+spreadFor(d.cid,d.grade))};
 const val=d=>{const p=adjP(d);return p==null?null:p*cleanT(d)};
@@ -466,7 +482,7 @@ function renderDel(){
    const q=[d.grade?`Grade ${esc(d.grade)}`:"",d.prot!=null?`Protein ${fmt(d.prot,1)}%`:"",d.scr!=null?`Screenings ${fmt(d.scr,1)}%`:"",d.oil!=null?`Oil ${fmt(d.oil,1)}%`:"",d.adm!=null?`Admix ${fmt(d.adm)}%`:"",d.moist!=null?`Moisture ${fmt(d.moist,1)}%`:"",d.tw!=null?`TWT ${fmt(d.tw,1)} kg/hl`:"",d.ret!=null?`Retention ${fmt(d.ret,1)}%`:"",d.fn!=null?`FN ${fmt(d.fn,0)}`:""].filter(Boolean).join(" · ");
    const mi=missingInfo(d);return `<div class="card cr-${d.crop.replace(/\s/g,"")}${mi.length?" flagged":""}">${flagHtml(mi)}<div class="it"><b>${esc(d.date)} · ${esc(d.crop)}</b><b>${fmt(d.t)} t${d.crop==="Canola"&&d.adm?` <span class="mut">(${fmt(cleanT(d))} clean)</span>`:""}</b></div>
    <div class="mut">${esc(d.store)}${d.site?" – "+esc(d.site):""}${d.docket?" · Docket "+esc(d.docket):""}${d.rego?" · Rego "+esc(d.rego):""}${d.farm?" · "+esc(d.farm):""}${d.paddock?" · Paddock "+esc(d.paddock):""}${d.variety?" · "+esc(d.variety):""}${d.ngr?" · NGR "+esc(ngrLbl(d.ngr)):""}</div>${owner()&&d.byName?`<div class="mut">Entered by ${esc(d.byName)}${d.editedBy&&d.editedBy!==d.byName?` · edited by ${esc(d.editedBy)}`:""}</div>`:""}${q?`<div>${q}</div>`:""}
-   <div>${/receival/i.test(d.store||"")?`<span class="tag" style="font-weight:700">${saleOf(d)==="sold"?"💲 Sold":"🌾 Warehouse"}</span> `:""}${c?`<span class="tag">Contract ${esc(c.no)}</span>`:`<span class="tag">Uncontracted</span>`}${v!=null?` $${fmt(adjP(d))}/t${spreadFor(d.cid,d.grade)?` <span class="mut">(incl. ${spreadFor(d.cid,d.grade)>0?"+":"−"}$${fmt(Math.abs(spreadFor(d.cid,d.grade)))} ${esc(d.grade)} spread)</span>`:""} · ${money(v)}`:""}</div>
+   <div>${/receival/i.test(d.store||"")?`<span class="tag" style="font-weight:700">${saleOf(d)==="sold"?"💲 Sold":"🌾 Warehouse"}</span> `:""}${c?`<span class="tag">Contract ${esc(c.no)}</span>`:`<span class="tag">Uncontracted</span>`}</div>${priceBreak(d)}
    ${owner()&&c&&tdays(c)!=null?(d.paid?`<div class="mut">Paid ✓ <button class="x" data-up="${d.id}">Undo</button></div>`:(()=>{const x=dueOf(d.date,tdays(c),c.basis==="eow");return `<div>Payment due ${dfmt(x)} <span class="${dleft(x)<0?"err":""}">(${clock(x)})</span></div>`})()):""}
    <div class="row" style="margin-top:2px"><button class="x" data-e="${d.id}">Edit</button>${owner()?`<button class="x own" data-x="${d.id}">Delete</button>`:""}</div></div>`}).join(""):`<p class="mut">No loads yet.</p>`;
   const day=$("#f_date").value,r=D.filter(d=>d.date===day),g={};r.forEach(d=>g[d.crop]=(g[d.crop]||[]).concat(d));
@@ -589,7 +605,7 @@ function renderOut(){$("#o_levels").innerHTML=levelsCard();renderCap();siteHint(
   const rows=st.filter(s=>s.inn>0);
   $("#o_stock").innerHTML=stockCard(rows);
   const r=[...O].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).filter((o,i)=>i<40||missingInfo(o,true).length);
-  $("#o_list").innerHTML=r.length?`<span class="big">Recent out loads</span>`+r.map(o=>`<div class="card cr-${esc(String(o.crop).replace(/\s/g,""))}${missingInfo(o,true).length?" flagged":""}">${flagHtml(missingInfo(o,true))}<div class="it"><b>${esc(o.date)} · ${esc(o.crop)}</b><b>${fmt(o.t)} t</b></div><div class="mut">From ${sname(o)}${o.dest?" → "+esc(o.dest):""}${o.docket?" · Docket "+esc(o.docket):""}${o.rego?" · Rego "+esc(o.rego):""}${o.ngr?" · NGR "+esc(ngrLbl(o.ngr)):""}</div>${oq(o)?`<div>${oq(o)}</div>`:`<div class="mut">No docket quality yet. Tap Edit to scan or enter it.</div>`}${owner()?`<div><span class="tag" style="font-weight:700">${saleOf({...o,_out:true})==="sold"?"💲 Sold":"🌾 Warehouse"}</span>${P["o_"+o.id]!=null?` $${fmt(P["o_"+o.id])}/t`:""} ${(()=>{const c=C.find(x=>x.id===o.cid);return c?`<span class="tag">Contract ${esc(c.no)}</span>${o.paid?" Paid ✓":""}`:`<span class="tag">Uncontracted</span>`})()}</div>`:""}${o.byName?`<div class="mut">Entered by ${esc(o.byName)}${o.editedBy&&o.editedBy!==o.byName?` · edited by ${esc(o.editedBy)}`:""}</div>`:""}<div class="row" style="margin-top:2px"><button class="x" data-oe="${o.id}">Edit</button>${owner()?`<button class="x" data-ox="${o.id}">Delete</button>`:""}</div></div>`).join(""):"";
+  $("#o_list").innerHTML=r.length?`<span class="big">Recent out loads</span>`+r.map(o=>`<div class="card cr-${esc(String(o.crop).replace(/\s/g,""))}${missingInfo(o,true).length?" flagged":""}">${flagHtml(missingInfo(o,true))}<div class="it"><b>${esc(o.date)} · ${esc(o.crop)}</b><b>${fmt(o.t)} t</b></div><div class="mut">From ${sname(o)}${o.dest?" → "+esc(o.dest):""}${o.docket?" · Docket "+esc(o.docket):""}${o.rego?" · Rego "+esc(o.rego):""}${o.ngr?" · NGR "+esc(ngrLbl(o.ngr)):""}</div>${oq(o)?`<div>${oq(o)}</div>`:`<div class="mut">No docket quality yet. Tap Edit to scan or enter it.</div>`}${owner()?`<div><span class="tag" style="font-weight:700">${saleOf({...o,_out:true})==="sold"?"💲 Sold":"🌾 Warehouse"}</span> ${(()=>{const c=C.find(x=>x.id===o.cid);return c?`<span class="tag">Contract ${esc(c.no)}</span>${o.paid?" Paid ✓":""}`:`<span class="tag">Uncontracted</span>`})()}</div>`:""}${priceBreak(o,true)}${o.byName?`<div class="mut">Entered by ${esc(o.byName)}${o.editedBy&&o.editedBy!==o.byName?` · edited by ${esc(o.editedBy)}`:""}</div>`:""}<div class="row" style="margin-top:2px"><button class="x" data-oe="${o.id}">Edit</button>${owner()?`<button class="x" data-ox="${o.id}">Delete</button>`:""}</div></div>`).join(""):"";
   outPrev()}
 const oq=o=>[o.variety?esc(o.variety):"",o.grade?`Grade ${esc(o.grade)}`:"",o.prot!=null?`Protein ${fmt(o.prot,1)}%`:"",o.scr!=null?`Screenings ${fmt(o.scr,1)}%`:"",o.oil!=null?`Oil ${fmt(o.oil,1)}%`:"",o.adm!=null?`Admix ${fmt(o.adm)}%`:"",o.moist!=null?`Moisture ${fmt(o.moist,1)}%`:"",o.tw!=null?`TWT ${fmt(o.tw,1)}`:"",o.ret!=null?`Retention ${fmt(o.ret,1)}%`:"",o.fn!=null?`FN ${fmt(o.fn,0)}`:""].filter(Boolean).join(" · ");
 const oSrc=()=>stock().find(x=>x.k===$("#o_src").value);

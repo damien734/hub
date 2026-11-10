@@ -41,7 +41,7 @@ h1{font-size:1.4rem;margin:2px 0}
 </main>
 <div class="bar"><form id="f"><input id="q" placeholder="Ask about loads, silos, machines…" autocomplete="off" enterkeyhint="send"><button id="go" disabled>Ask</button></form></div>
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611062050";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611101026";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const today=()=>new Date().toLocaleDateString("en-CA");

@@ -183,6 +183,19 @@ body.staff .staffnote{display:inline!important}
  <div id="moneyTot" class="own"></div><div id="totals"></div><div id="levelTot"></div><div id="stockTot"></div><div id="padTot"></div>
  <div class="own">
   <div class="card">
+   <span class="big">📱 Phone notifications</span>
+   <p class="mut">Get a notification on your phone each time a <b>staff member</b> saves a new load. Loads you or Carissa enter aren't sent. No prices are ever included.</p>
+   <ol class="mut" style="margin:4px 0 8px;padding-left:20px">
+    <li>Install the free <b>ntfy</b> app (App Store or Google Play).</li>
+    <li>Tap <b>Create channel</b> below, then <b>Save</b>.</li>
+    <li>In the ntfy app tap <b>+</b>, paste the channel name (server: ntfy.sh) and subscribe.</li>
+    <li>Tap <b>Send test</b> to check it arrives.</li>
+   </ol>
+   <div class="grid"><label>Channel name (keep it private)<input id="nt_topic" autocomplete="off" autocapitalize="off" spellcheck="false"></label></div>
+   <label style="display:flex;align-items:center;gap:8px;margin-top:6px;color:var(--fg)"><input type="checkbox" id="nt_on" style="width:auto;min-height:auto"> Notifications on</label>
+   <div class="row"><button class="s" id="nt_new" type="button">Create channel</button><button class="s" id="nt_copy" type="button">Copy</button><button class="p" id="nt_save" type="button">Save</button><button class="s" id="nt_test" type="button">Send test</button></div>
+  </div>
+  <div class="card">
    <span class="big">Silos &amp; bags</span>
    <p class="mut">Add your silos and grain bags and put in how many tonnes each holds. Everyone then sees how full each one is.</p>
    <div id="capMgr"></div>
@@ -222,7 +235,7 @@ body.staff .staffnote{display:inline!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611122021";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611150457";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -230,7 +243,7 @@ const money=n=>"$"+fmt(n,0);
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const num=id=>{const v=$(id).value;return v===""?null:Number(v)};
 const CROPS=["Wheat","Canola","Barley","Faba Beans"],DEF=["Receival site","Own silo","Grain bag"],GR={Wheat:["H1","H2","APW1","AH1","ASW1","Feed"],Barley:["Malt 1","Food 1","Feed 1","Feed 2"]};
-let NG=[],totNgr="",PN={},FM=[],PC={},CAP={};
+let NG=[],totNgr="",PN={},FM=[],PC={},CAP={},NT={};
 let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={pcrops:{},paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
 const owner=()=>admin&&!pv;
 const adj=(crop,oil,p)=>crop==="Canola"&&oil!=null?p*(1+S.oilRate/100*(oil-S.oilBase)):p;
@@ -276,6 +289,18 @@ const flagHtml=m=>m.length?`<div><span class="flagx">⚠ Needs ${esc(m.join(", "
 function flagCounts(){const nd=D.filter(d=>missingInfo(d).length).length,no=O.filter(o=>missingInfo(o,true).length).length;
   [["del","Loads",nd],["out","Out load",no]].forEach(([t,l,n])=>{const b=document.querySelector(`.tabs [data-tab="${t}"]`);if(b)b.innerHTML=esc(l)+(n?`<span class="cnt" title="${n} need docket or quality">⚠ ${n}</span>`:"")})}
 const stamp=ms=>{if(!ms)return "";const d=new Date(ms);if(isNaN(d))return "";return d.toLocaleString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"})};
+/* phone notifications via ntfy.sh (staff loads only, never prices) */
+async function ntSend(title,lines,tags){if(!NT.topic)return false;
+  try{const r=await fetch("https://ntfy.sh/",{method:"POST",body:JSON.stringify({topic:NT.topic,title,message:lines.filter(Boolean).join("\n"),tags:tags||["ear_of_rice"]})});return r.ok}catch(e){console.warn("ntfy failed",e);return false}}
+function ntLoad(d){if(owner()||!NT.on||!NT.topic)return;const q=d.crop==="Canola"?(d.oil!=null?`Oil ${fmt(d.oil,1)}%`:""):(d.prot!=null?`Protein ${fmt(d.prot,1)}%`:"");
+  ntSend(`Load entered by ${d.byName||"staff"}`,[`Time: ${new Date(d.ts||Date.now()).toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"})}`,d.rego?`Rego: ${d.rego}`:"",`Weight: ${fmt(d.t)} t ${d.crop}`,
+    (d.grade||q)?[d.grade?`Grade: ${d.grade}`:"",q].filter(Boolean).join(" · "):"",`Location: ${[d.site,d.store].filter(Boolean).join(" · ")}`])}
+const ntPaint=()=>{if(!$("#nt_topic"))return;if(document.activeElement!==$("#nt_topic"))$("#nt_topic").value=NT.topic||"";$("#nt_on").checked=!!NT.on};
+$("#nt_new").onclick=()=>{const a=new Uint8Array(12);crypto.getRandomValues(a);$("#nt_topic").value="gunnadoo-"+[...a].map(x=>"abcdefghijkmnpqrstuvwxyz23456789"[x%32]).join("");$("#nt_on").checked=true;status("New channel name made. Tap Save, then subscribe to it in the ntfy app.")};
+$("#nt_copy").onclick=async()=>{const v=$("#nt_topic").value;if(!v)return;try{await navigator.clipboard.writeText(v);status("Channel name copied.")}catch(e){$("#nt_topic").select();status("Select the channel name and copy it.")}};
+$("#nt_save").onclick=async()=>{const t=$("#nt_topic").value.trim();if(t&&!/^[A-Za-z0-9_-]{12,64}$/.test(t)){status("Channel name must be 12–64 letters, numbers, - or _. Tap Create channel for a good one.",true);return}
+  try{await db.doc("settings/notify").set({topic:t,on:$("#nt_on").checked&&!!t});status(t?"Notification settings saved.":"Notifications turned off.")}catch(e){status("Could not save ("+(e.code||"error")+").",true)}};
+$("#nt_test").onclick=async()=>{if(!NT.topic){status("Save a channel name first.",true);return}const ok=await ntSend("Test from Grain Tracker",["If you can read this, staff load notifications will reach this phone.","Example:","Time: "+new Date().toLocaleTimeString("en-AU",{hour:"numeric",minute:"2-digit"}),"Rego: ABC123","Weight: 32.40 t Wheat","Grade: H2 · Protein 11.5%","Location: Bag 1 · Grain bag"],["white_check_mark"]);status(ok?"Test sent. It should arrive in a few seconds.":"Couldn't reach ntfy. Check your internet and try again.",!ok)};
 function status(t,err){const e=$("#status");e.textContent=t;e.className="msg"+(err?" err":"")+(t?"":" hide")}
 function mode(){document.body.classList.toggle("staff",!owner());$("#who").textContent=($("#f_name").value?$("#f_name").value+" · ":"")+(owner()?"Owner":"Staff");$("#pvBar").classList.toggle("hide",!(admin&&pv));fillSelects();preview();renderAll()}
 function go(t){document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x.dataset.tab===t));["add","del","con","out","tot"].forEach(k=>$("#t-"+k).classList.toggle("hide",k!==t))}
@@ -470,6 +495,7 @@ $("#saveDel").onclick=async()=>{const d=readDel();
      if(owner()){if(p!=null)await pr.set({v:p});else if(old)await pr.delete().catch(()=>{})}
      else if(p!=null){await pr.set({v:p}).catch(()=>status("The load saved, but the price couldn't be saved. Tell Damo.",true));$("#f_price").value=""}}
    rememberRego(d.rego);
+   if(!old)ntLoad(d);
    if(d.variety&&d.paddock&&yrVar(d.paddock,d.date)!==d.variety){const y=yrOf(d.date);L.pvar=L.pvar||{};(L.pvar[y]=L.pvar[y]||{})[d.paddock]=d.variety;saveL()}
    $("#toast").textContent=`Saved ✓ ${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}`;status("");clearNeed();
    bigSaved(old?"Load updated":"Load saved",`${fmt(d.t)} t ${d.crop}${d.site?" → "+d.site:""}${d.paddock?" · "+d.paddock:""}`);
@@ -734,6 +760,7 @@ setCrop("Wheat");setSS(L.stores[0],"");mode();
   db.collection("outloads").onSnapshot(s=>{O=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.collection("contracts").onSnapshot(s=>{C=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.doc("settings/main").onSnapshot(s=>{if(s.exists)S={...S,...s.data()};renderAll()},()=>{});
+  db.doc("settings/notify").onSnapshot(s=>{NT=s.exists?(s.data()||{}):{};ntPaint()},()=>{});
   db.doc("settings/capacity").onSnapshot(s=>{CAP=s.exists&&s.data().map?s.data().map:{};renderAll()},()=>{});
   db.doc("settings/padcrops").onSnapshot(s=>{PC=s.exists?(s.data()||{}):{};renderPC();showLock()},()=>{});
   db.doc("settings/farms").onSnapshot(s=>{FM=s.exists&&Array.isArray(s.data().list)?s.data().list:[];fillNgr();setPad(curPad)},()=>{});

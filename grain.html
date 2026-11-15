@@ -235,7 +235,7 @@ body.staff .staffnote{display:inline!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611150457";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611151132";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -247,7 +247,9 @@ let NG=[],totNgr="",PN={},FM=[],PC={},CAP={},NT={};
 let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={pcrops:{},paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
 const owner=()=>admin&&!pv;
 const adj=(crop,oil,p)=>crop==="Canola"&&oil!=null?p*(1+S.oilRate/100*(oil-S.oilBase)):p;
-const cleanT=d=>d.crop==="Canola"?d.t*(1-(d.adm||0)/100):d.t;
+/* tonnes are reported as delivered (gross, incl. admix, as on dockets and contracts); canola is PAID on tonnes after admix */
+const payT=d=>d.crop==="Canola"?d.t*(1-(d.adm||0)/100):d.t;
+const cleanT=d=>Number(d.t)||0;
 let SP={};
 const spreadFor=(cid,grade)=>{const t=cid&&SP["c_"+cid];if(!t||!grade)return 0;const k=Object.keys(t).find(g=>nnorm(g)===nnorm(grade));return k?Number(t[k])||0:0};
 const nnorm=v=>String(v||"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -257,7 +259,7 @@ const basePrice=d=>{const own=P[pk(d)];if(own!=null)return own;const c=d.cid&&P[
 /* admin price breakdown: original price -> grade spread -> canola oil -> admixture -> received */
 function priceBreak(d,out){if(!owner())return "";const x=out?{...d,_out:true}:d,b=basePrice(x);if(b==null)return "";
   const own=P[pk(x)]!=null,c=d.cid&&C.find(y=>y.id===d.cid),sp=spreadFor(d.cid,d.grade),afterSp=b+sp,fin=adj(d.crop,d.oil,afterSp),oilAmt=fin-afterSp;
-  const ct=cleanT(d),gross=Number(d.t)||0,admT=gross-ct,val=fin*ct,perGross=gross?val/gross:fin;
+  const ct=payT(d),gross=Number(d.t)||0,admT=gross-ct,val=fin*ct,perGross=gross?val/gross:fin;
   const sg=v=>(v>=0?"+":"−")+"$"+fmt(Math.abs(v)),cls=v=>v>=0?"plus":"minus";
   const rows=[`<div class="it"><span>${own?"Sold price":"Contract "+esc(c?c.no:"")+" price"}</span><b>$${fmt(b)}/t</b></div>`];
   if(sp)rows.push(`<div class="it"><span>${esc(d.grade)} grade spread</span><b class="${cls(sp)}">${sg(sp)}/t</b></div>`);
@@ -265,11 +267,11 @@ function priceBreak(d,out){if(!owner())return "";const x=out?{...d,_out:true}:d,
   if(!sp&&!(d.crop==="Canola"&&d.oil!=null&&Math.abs(oilAmt)>0.005))rows.push(`<div class="it mut"><span>No grade spread or oil adjustment</span><span></span></div>`);
   rows.push(`<div class="it tot"><span>Received price</span><b>$${fmt(fin)}/t</b></div>`);
   if(admT>0.0005)rows.push(`<div class="it"><span>Admixture ${fmt(d.adm,2)}%: paid on ${fmt(ct,2)} of ${fmt(gross,2)} t</span><b class="minus">−$${fmt(fin-perGross)}/t</b></div><div class="it tot"><span>Received per delivered tonne</span><b>$${fmt(perGross)}/t</b></div>`);
-  rows.push(`<div class="it"><span>Load value (${fmt(ct,2)} t)</span><b>${money(val)}</b></div>`);
+  rows.push(`<div class="it"><span>Load value (${admT>0.0005?`paid on ${fmt(ct,2)} t`:`${fmt(ct,2)} t`})</span><b>${money(val)}</b></div>`);
   return `<div class="pb">${rows.join("")}</div>`}
 const priceOf=d=>{const b=basePrice(d);return b==null?null:adj(d.crop,d.oil,b+spreadFor(d.cid,d.grade))};
 const adjP=d=>{const p=P[pk(d)];return p==null?null:adj(d.crop,d.oil,p+spreadFor(d.cid,d.grade))};
-const val=d=>{const p=adjP(d);return p==null?null:p*cleanT(d)};
+const val=d=>{const p=adjP(d);return p==null?null:p*payT(d)};
 const allDel=()=>[...D,...O.map(o=>({...o,_out:true}))];
 const delivered=c=>allDel().filter(d=>d.cid===c.id).reduce((a,d)=>a+cleanT(d),0);
 const pid=d=>(d._out?"o:":"")+d.id;
@@ -454,8 +456,8 @@ $("#f_saleSeg").onclick=e=>{const b=e.target.closest("[data-sale]");if(!b)return
 $("#o_saleSeg").onclick=e=>{const b=e.target.closest("[data-sale]");if(!b)return;setSale("o",b.dataset.sale);if(b.dataset.sale==="sold")$("#o_price").focus()};
 $("#o_con").addEventListener("change",()=>conUI("o"));
 function preview(){const d=readDel();let s="";
-  if(d.t&&d.crop==="Canola")s=`Clean tonnes: ${fmt(cleanT(d))}`;
-  if(owner()&&d.t&&fSale==="sold"){const p=num("#f_price");if(p!=null){const sp=spreadFor(d.cid,d.grade),a=adj(d.crop,d.oil,p+sp);s+=(s?" · ":"")+`$${fmt(a)}/t${sp?` (incl. ${sp>0?"+":"−"}$${fmt(Math.abs(sp))} ${d.grade} spread)`:""}${d.crop==="Canola"?" after oil":""} · Value ≈ ${money(a*cleanT(d))}`}}
+  if(d.t&&d.crop==="Canola"&&d.adm)s=`Paid on ${fmt(payT(d))} t after ${fmt(d.adm,2)}% admix`;
+  if(owner()&&d.t&&fSale==="sold"){const p=num("#f_price");if(p!=null){const sp=spreadFor(d.cid,d.grade),a=adj(d.crop,d.oil,p+sp);s+=(s?" · ":"")+`$${fmt(a)}/t${sp?` (incl. ${sp>0?"+":"−"}$${fmt(Math.abs(sp))} ${d.grade} spread)`:""}${d.crop==="Canola"?" after oil":""} · Value ≈ ${money(a*payT(d))}`}}
   $("#preview").textContent=s}
 ["f_t","f_oil","f_adm","f_price"].forEach(i=>$("#"+i).oninput=preview);
 $("#f_con").onchange=()=>{conUI("f");{const c=C.find(x=>x.id===$("#f_con").value);if(c&&c.ngr&&$("#f_ngr").value!==c.ngr)ngrOpts($("#f_ngr"),c.ngr)}preview()};
@@ -507,7 +509,7 @@ function renderDel(){
   const rows=[...D].sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.ts||0)-(a.ts||0)).filter((d,i)=>i<(owner()?500:60)||missingInfo(d).length);
   $("#delList").innerHTML=rows.length?rows.map(d=>{const c=C.find(x=>x.id===d.cid),v=owner()?val(d):null;
    const q=[d.grade?`Grade ${esc(d.grade)}`:"",d.prot!=null?`Protein ${fmt(d.prot,1)}%`:"",d.scr!=null?`Screenings ${fmt(d.scr,1)}%`:"",d.oil!=null?`Oil ${fmt(d.oil,1)}%`:"",d.adm!=null?`Admix ${fmt(d.adm)}%`:"",d.moist!=null?`Moisture ${fmt(d.moist,1)}%`:"",d.tw!=null?`TWT ${fmt(d.tw,1)} kg/hl`:"",d.ret!=null?`Retention ${fmt(d.ret,1)}%`:"",d.fn!=null?`FN ${fmt(d.fn,0)}`:""].filter(Boolean).join(" · ");
-   const mi=missingInfo(d);return `<div class="card cr-${d.crop.replace(/\s/g,"")}${mi.length?" flagged":""}">${flagHtml(mi)}<div class="it"><b>${esc(d.date)} · ${esc(d.crop)}</b><b>${fmt(d.t)} t${d.crop==="Canola"&&d.adm?` <span class="mut">(${fmt(cleanT(d))} clean)</span>`:""}</b></div>
+   const mi=missingInfo(d);return `<div class="card cr-${d.crop.replace(/\s/g,"")}${mi.length?" flagged":""}">${flagHtml(mi)}<div class="it"><b>${esc(d.date)} · ${esc(d.crop)}</b><b>${fmt(d.t)} t${d.crop==="Canola"&&d.adm?` <span class="mut">(paid on ${fmt(payT(d))})</span>`:""}</b></div>
    <div class="mut">${esc(d.store)}${d.site?" – "+esc(d.site):""}${d.docket?" · Docket "+esc(d.docket):""}${d.rego?" · Rego "+esc(d.rego):""}${d.farm?" · "+esc(d.farm):""}${d.paddock?" · Paddock "+esc(d.paddock):""}${d.variety?" · "+esc(d.variety):""}${d.ngr?" · NGR "+esc(ngrLbl(d.ngr)):""}</div>${owner()&&d.byName?`<div class="mut">Entered by ${esc(d.byName)}${d.ts?` · ${stamp(d.ts)}`:""}${d.editedBy?` · edited by ${esc(d.editedBy)}${d.editedAt?` ${stamp(d.editedAt)}`:""}`:""}</div>`:""}${q?`<div>${q}</div>`:""}
    <div>${/receival/i.test(d.store||"")?`<span class="tag" style="font-weight:700">${saleOf(d)==="sold"?"💲 Sold":"🌾 Warehouse"}</span> `:""}${c?`<span class="tag">Contract ${esc(c.no)}</span>`:`<span class="tag">Uncontracted</span>`}</div>${priceBreak(d)}
    ${owner()&&c&&tdays(c)!=null?(d.paid?`<div class="mut">Paid ✓ <button class="x" data-up="${d.id}">Undo</button></div>`:(()=>{const x=dueOf(d.date,tdays(c),c.basis==="eow");return `<div>Payment due ${dfmt(x)} <span class="${dleft(x)<0?"err":""}">(${clock(x)})</span></div>`})()):""}
@@ -544,7 +546,7 @@ $("#saveCon").onclick=async()=>{const c={ngr:$("#c_ngr").value||null,no:$("#c_no
    const p=num("#c_price"),pr=db.doc("pricing/c_"+id),sp=readSpreads().o,hasSp=Object.keys(sp).length>0;if(p!=null||hasSp)await pr.set({v:p,spreads:sp});else await pr.delete().catch(()=>{});status("");clearCon()}
   catch(e){status("Could not save ("+(e.code||"error")+").",true)}};
 const tdays=c=>{const n=parseInt(c.terms,10);return Number.isFinite(n)?n:(c.days!=null?c.days:(c.basis==="eow"?0:null))};
-const valC=(d,c)=>{const p=P[pk(d)]??P["c_"+c.id];return p==null?null:adj(d.crop,d.oil,p+spreadFor(c.id,d.grade))*cleanT(d)};
+const valC=(d,c)=>{const p=P[pk(d)]??P["c_"+c.id];return p==null?null:adj(d.crop,d.oil,p+spreadFor(c.id,d.grade))*payT(d)};
 const tlabel=c=>{const n=tdays(c);return c.basis==="eow"?(n?`${n} days after end of delivery week`:"end of delivery week"):`${n} days from delivery`};
 const dueOf=(s,n,eow)=>{const x=new Date(s+"T00:00:00");if(eow)x.setDate(x.getDate()+(S.weekEnd-x.getDay()+7)%7);x.setDate(x.getDate()+n);return x};
 const dleft=x=>{const t=new Date();t.setHours(0,0,0,0);return Math.round((x-t)/864e5)};
@@ -576,15 +578,15 @@ function renderTot(){
    const cells=r=>cols.map(([k,,dp])=>{const a=wavg(r,k);return `<td>${a!=null?fmt(a,dp):"–"}</td>`}).join("");
    const sum=r=>r.reduce((a,d)=>a+cleanT(d),0),tot=sum(rows);
    const gl=(cr==="Wheat"||cr==="Barley")?Object.entries(rows.reduce((o,d)=>{const k=d.grade||"No grade";o[k]=(o[k]||0)+cleanT(d);return o},{})).filter(([,v])=>Math.abs(v)>0.005).map(([k,v])=>`${esc(k)} ${fmt(v)} t`).join(" · "):"";
-   return `<div class="card cr-${cr.replace(/\s/g,"")}"><div class="it"><b>${esc(cr)}</b><b>${fmt(tot)} t${cr==="Canola"?" clean":""}</b></div><div class="wrap"><table><tr><th>Storage</th><th>Loads</th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}<th>Tonnes</th></tr>`+
+   return `<div class="card cr-${cr.replace(/\s/g,"")}"><div class="it"><b>${esc(cr)}</b><b>${fmt(tot)} t</b></div><div class="wrap"><table><tr><th>Storage</th><th>Loads</th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}<th>Tonnes</th></tr>`+
    Object.entries(g).filter(([,r])=>Math.abs(sum(r))>0.005||nl(r)).map(([k,r])=>{const [s,n]=k.split("|"),moved=r.some(d=>d._neg);return `<tr><td>${esc(s)}${n?" – "+esc(n):""}${moved?`<div class="mut">left after out loads</div>`:""}${r.some(d=>d._out)?`<div class="mut">incl. out loads from farm</div>`:""}</td><td>${nl(r)}</td>${cells(r)}<td class="tn">${fmt(sum(r))}</td></tr>`}).join("")+
-   `<tr><th>All ${esc(cr)}</th><th>${nl(rows.filter(d=>!d._out))}</th>${cells(rows).replace(/<td>/g,"<th>").replace(/<\/td>/g,"</th>")}<th class="tn">${fmt(tot)}</th></tr></table></div>${gl?`<div style="margin-top:6px">By grade: ${gl}</div>`:""}${(()=>{const v=Object.entries(rows.filter(d=>!d._neg).reduce((o,d)=>{if(d._out&&!d.variety)return o;const k=d.variety||"No variety";o[k]=(o[k]||0)+cleanT(d);return o},{})).filter(([,t])=>t>0.005);return v.length?`<div style="margin-top:4px">By variety: ${v.map(([k,t])=>`${esc(k)} ${fmt(t)} t`).join(" · ")}</div>`:""})()}<p class="mut">Averages are weighted by tonnes. Grain taken out of silos and bags is shown at the site it went to, with the quality from its docket.${cr==="Canola"?" Tonnes shown after admixture is removed.":""}</p></div>`}).join("")||`<p class="mut">Totals appear once you add loads.</p>`;
+   `<tr><th>All ${esc(cr)}</th><th>${nl(rows.filter(d=>!d._out))}</th>${cells(rows).replace(/<td>/g,"<th>").replace(/<\/td>/g,"</th>")}<th class="tn">${fmt(tot)}</th></tr></table></div>${gl?`<div style="margin-top:6px">By grade: ${gl}</div>`:""}${(()=>{const v=Object.entries(rows.filter(d=>!d._neg).reduce((o,d)=>{if(d._out&&!d.variety)return o;const k=d.variety||"No variety";o[k]=(o[k]||0)+cleanT(d);return o},{})).filter(([,t])=>t>0.005);return v.length?`<div style="margin-top:4px">By variety: ${v.map(([k,t])=>`${esc(k)} ${fmt(t)} t`).join(" · ")}</div>`:""})()}<p class="mut">Averages are weighted by tonnes. Grain taken out of silos and bags is shown at the site it went to, with the quality from its docket.${cr==="Canola"?" Canola tonnes are as delivered (incl. admixture); payments are worked out on tonnes after admixture.":""}</p></div>`}).join("")||`<p class="mut">Totals appear once you add loads.</p>`;
   $("#s_base").value=S.oilBase;$("#s_rate").value=S.oilRate;$("#s_week").value=S.weekEnd;}
 $("#saveSet").onclick=async()=>{try{await db.doc("settings/main").set({oilBase:num("#s_base")??42,oilRate:num("#s_rate")??1.5,weekEnd:Number($("#s_week").value)});status("Settings saved.")}catch(e){status("Could not save settings.",true)}};
 $("#csv").onclick=async()=>{if(!dl){status("Download is not available in this view.",true);return}
-  const h=["ngr","farm","date","crop","variety","storage","site","docket","rego","paddock","grade","net_t","clean_t","protein","screenings","oil","admix","moisture","test_weight","retention","falling_number","contract","price","adj_price","value","entered_by"],q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
-  const rows=D.map(d=>{const c=C.find(x=>x.id===d.cid);return [d.ngr||"",d.farm||"",d.date,d.crop,d.variety||"",d.store,d.site,d.docket,d.rego,d.paddock,d.grade,d.t,cleanT(d).toFixed(3),d.prot,d.scr,d.oil,d.adm,d.moist,d.tw,d.ret,d.fn,c?c.no:"",P["d_"+d.id],adjP(d)?.toFixed(2),val(d)?.toFixed(0),d.byName].map(q).join(",")});
-  O.forEach(o=>{const c=C.find(x=>x.id===o.cid);rows.push([o.ngr||"","",o.date,o.crop,o.variety||"","Out load from "+(o.site||o.store),o.dest||"",o.docket,o.rego,"",o.grade,o.t,cleanT(o).toFixed(3),o.prot,o.scr,o.oil,o.adm,o.moist,o.tw,o.ret,o.fn,c?c.no:"","",c&&P["c_"+c.id]!=null?adj(o.crop,o.oil,P["c_"+c.id]).toFixed(2):"",c?valC(o,c)?.toFixed(0):"",o.byName].map(q).join(","))});
+  const h=["ngr","farm","date","crop","variety","storage","site","docket","rego","paddock","grade","net_t","paid_t","protein","screenings","oil","admix","moisture","test_weight","retention","falling_number","contract","price","adj_price","value","entered_by"],q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const rows=D.map(d=>{const c=C.find(x=>x.id===d.cid);return [d.ngr||"",d.farm||"",d.date,d.crop,d.variety||"",d.store,d.site,d.docket,d.rego,d.paddock,d.grade,d.t,payT(d).toFixed(3),d.prot,d.scr,d.oil,d.adm,d.moist,d.tw,d.ret,d.fn,c?c.no:"",P["d_"+d.id],adjP(d)?.toFixed(2),val(d)?.toFixed(0),d.byName].map(q).join(",")});
+  O.forEach(o=>{const c=C.find(x=>x.id===o.cid);rows.push([o.ngr||"","",o.date,o.crop,o.variety||"","Out load from "+(o.site||o.store),o.dest||"",o.docket,o.rego,"",o.grade,o.t,payT(o).toFixed(3),o.prot,o.scr,o.oil,o.adm,o.moist,o.tw,o.ret,o.fn,c?c.no:"","",c&&P["c_"+c.id]!=null?adj(o.crop,o.oil,P["c_"+c.id]).toFixed(2):"",c?valC(o,c)?.toFixed(0):"",o.byName].map(q).join(","))});
   try{await dl.save({filename:"grain-deliveries.csv",data:[h.join(","),...rows].join("\n")})}catch(e){}};
 /* out loads: grain taken from own silos / bags */
 const onFarm=d=>!/receival/i.test(d.store||"");
@@ -689,7 +691,7 @@ function renderStockTot(){renderMoney();$("#levelTot").innerHTML=levelsCard();co
 function renderPad(){renderStockTot();const m={},D=totRows();D.forEach(d=>{const k=d.paddock||"No paddock",x=m[k]=m[k]||{n:0,c:{}};x.n++;x.c[d.crop]=(x.c[d.crop]||0)+cleanT(d)});
   const rows=Object.entries(m).sort((a,b)=>(a[0]==="No paddock")-(b[0]==="No paddock")||a[0].localeCompare(b[0]));
   setPad(curPad);
-  $("#padTot").innerHTML=rows.length?`<div class="card"><span class="big">By paddock</span><div class="wrap"><table><tr><th>Paddock</th><th>Loads</th><th>Tonnes</th></tr>`+rows.map(([k,x])=>`<tr><td>${esc(k)}<div class="mut">${Object.entries(x.c).map(([c,v])=>`${esc(c)} ${fmt(v)} t`).join(" · ")}</div></td><td>${x.n}</td><td class="tn">${fmt(Object.values(x.c).reduce((a,v)=>a+v,0))}</td></tr>`).join("")+`</table></div><p class="mut">Harvested tonnes by paddock (canola after admixture). Loads with no paddock entered are grouped separately.</p></div>`:""}
+  $("#padTot").innerHTML=rows.length?`<div class="card"><span class="big">By paddock</span><div class="wrap"><table><tr><th>Paddock</th><th>Loads</th><th>Tonnes</th></tr>`+rows.map(([k,x])=>`<tr><td>${esc(k)}<div class="mut">${Object.entries(x.c).map(([c,v])=>`${esc(c)} ${fmt(v)} t`).join(" · ")}</div></td><td>${x.n}</td><td class="tn">${fmt(Object.values(x.c).reduce((a,v)=>a+v,0))}</td></tr>`).join("")+`</table></div><p class="mut">Harvested tonnes by paddock, as delivered. Loads with no paddock entered are grouped separately.</p></div>`:""}
 function renderAll(){flagCounts();fillNgr();conOptions();renderDel();renderCon();renderTot();renderPad();renderOut();renderLists();preview()}
 
 /* docket scan */

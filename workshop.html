@@ -184,7 +184,7 @@ body.noprice .pc{display:none!important}
 <div id="toast" class="toast" hidden></div>
 
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611160812";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611162354";
 const HISTORY_EDITOR="damschneider@hotmail.com"; // only this login can edit or delete history entries
 const S={db:null,user:null,assets:null,uid:null,canEdit:false,canWrite:true,isAdmin:false,me:null,photos:{},
   machines:[],logs:[],oils:[],sel:null,tab:"overview",ready:false,names:{}};
@@ -341,7 +341,7 @@ function openService(m,i){
   const iv=(m.intervals||[])[i];if(!iv)return;
   const ls=serviceLines(m,iv),st=intervalState(m,iv),tot=ls.reduce((a,l)=>a+(l.total||0),0),miss=ls.filter(l=>l.total==null);
   const every=`${fmtNum(num(iv.every))} ${iv.unit==="months"?"months":ivUnit(m,iv)}${iv.unit!=="months"&&num(iv.months)?` or ${iv.months} months`:""}`;
-  const s=sheet(`<div><span class="catpill" style="${catStyle(m.category||"Other")}">${esc(m.name)}</span><h2>${esc(iv.task)}</h2></div>
+  const s=sheet(`<div><span class="catpill" style="${catStyle(m.category||"Other")}">${esc(m.name)}</span><h2>${esc(iv.task)}</h2>${iv.socket?`<div style="margin-top:4px">🔧 Drain plug socket: <b>${esc(iv.socket)}${/^[\d.]+$/.test(iv.socket)?" mm":""}</b></div>`:""}</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="chip ${st.cls}">${esc(st.text)}</span><span class="note">Every ${esc(every)}${st.due?" · next due "+esc(st.due):""}</span></div>
   <h3 class="sec" style="${catStyle(m.category||"Other")}">What you need</h3>
   ${ls.length?`<div class="tscroll" style="${catStyle(m.category||"Other")}"><table><thead><tr><th>Item</th><th>Qty</th><th>Part numbers / oil</th><th class="pc">Unit price</th><th class="pc">Cost</th></tr></thead><tbody>
@@ -392,7 +392,7 @@ function renderTab(m){
     const iv=m.intervals||[], fl=m.fluids||[];
     b.innerHTML=`<h3 class="sec" style="margin-bottom:4px">Service schedule</h3>
     ${iv.length?`<div class="note" style="margin-bottom:8px">Tap a service to see what it needs. Tick services to add them to the shopping list.</div><div class="tscroll"><table><thead><tr><th>List</th><th>Task</th><th>Every</th><th>Last done</th><th>Next due</th><th class="pc">Est. cost</th><th>Status</th></tr></thead><tbody>
-      ${iv.map((x,i)=>{const s=intervalState(m,x),c=serviceCost(m,x);return `<tr><td><input type="checkbox" style="width:auto" data-sl="${i}"${SL.has(m.id,x.task)?" checked":""} aria-label="Add ${esc(x.task)} to shopping list"></td><td><button type="button" class="linkbtn" data-sv="${i}">${esc(x.task)}</button>${x.parts?`<div class="note">${esc(x.parts)}</div>`:""}</td><td class="num">${esc(fmtNum(num(x.every)))} ${x.unit==="months"?"months":ivUnit(m,x)}${x.unit!=="months"&&num(x.months)?` / ${esc(x.months)} months`:""}</td>
+      ${iv.map((x,i)=>{const s=intervalState(m,x),c=serviceCost(m,x);return `<tr><td><input type="checkbox" style="width:auto" data-sl="${i}"${SL.has(m.id,x.task)?" checked":""} aria-label="Add ${esc(x.task)} to shopping list"></td><td><button type="button" class="linkbtn" data-sv="${i}">${esc(x.task)}</button>${x.socket?`<div class="note">🔧 Drain plug: <b>${esc(x.socket)}${/^[\d.]+$/.test(x.socket)?" mm":""}</b></div>`:""}${x.parts?`<div class="note">${esc(x.parts)}</div>`:""}</td><td class="num">${esc(fmtNum(num(x.every)))} ${x.unit==="months"?"months":ivUnit(m,x)}${x.unit!=="months"&&num(x.months)?` / ${esc(x.months)} months`:""}</td>
       <td class="num">${x.lastAt!=null&&x.lastAt!==""?fmtNum(num(x.lastAt))+" "+ivUnit(m,x):""}${x.lastDate?`<div class="note">${fmtDate(x.lastDate)}</div>`:""}${x.lastAt==null&&!x.lastDate?"—":""}</td>
       <td class="num">${esc(s.due||"—")}</td><td class="num pc">${!c?"—":(c.total?money(c.total)+(c.missing.length?" +":""):"—")}${c&&c.missing.length?`<div class="note">${esc(c.missing.join(", "))}: price needed</div>`:""}</td><td><span class="chip ${s.cls}">${esc(s.text)}</span></td></tr>`}).join("")}</tbody></table></div>`
       :`<div class="empty">No service intervals set${S.canEdit?" — add them under Edit details, taken from the operator's manual":""}.</div>`}
@@ -611,7 +611,7 @@ function rowHtml(cols,r,ph){return `<div class="r">${cols.map(c=>c.oilSel?oilSel
 const FLUID_COLS=[{f:"system",l:"Item (e.g. Engine oil filter, Fan belt)"},{f:"spec",l:"Oil / fluid spec"},{f:"qty",l:"Qty / capacity"},{f:"filter",l:"Part numbers"},{f:"price",l:"Price ex GST",n:true},{f:"per",l:"Per",opts:[["each","each"],["L","litre"]]},{f:"oilId",l:"Oil from farm store",oilSel:true}];
 const OIL_TYPES=["Engine oil","Transmission & hydraulic","Gear oil","Coolant","Grease","Other"];
 const OIL_COLS=[{f:"name",l:"Name (e.g. Hi-Tech 15W-40)"},{f:"type",l:"Type",opts:[["","Type…"],...OIL_TYPES.map(t=>[t,t])]},{f:"grade",l:"Grade (e.g. 15W-40)"},{f:"specs",l:"Specs / approvals"},{f:"price",l:"$ per litre ex GST",n:true},{f:"pack",l:"Pack (e.g. 205 L drum)"}];
-const IV_COLS=[{f:"task",l:"Task (e.g. Engine oil & filter)"},{f:"every",l:"Every",n:true},{f:"unit",l:"Unit",opts:[["hrs","hrs / km"],["months","months"]]},{f:"months",l:"or months",n:true},{f:"meter",l:"Counts on",opts:[["","Main meter"],["2","Second meter"]]},{f:"parts",l:"Parts used (e.g. Engine oil filter x1; Engine oil x15)"}];
+const IV_COLS=[{f:"task",l:"Task (e.g. Engine oil & filter)"},{f:"every",l:"Every",n:true},{f:"unit",l:"Unit",opts:[["hrs","hrs / km"],["months","months"]]},{f:"months",l:"or months",n:true},{f:"meter",l:"Counts on",opts:[["","Main meter"],["2","Second meter"]]},{f:"parts",l:"Parts used (e.g. Engine oil filter x1; Engine oil x15)"},{f:"socket",l:"Drain plug socket (mm)"}];
 const MAN_COLS=[{f:"title",l:"Title"},{f:"kind",l:"Type",opts:[["Operator's manual","Operator's"],["Workshop manual","Workshop"],["Parts book","Parts book"],["Other","Other"]]},{f:"url",l:"Link (https://…)"}];
 const IDS_COLS=[{f:"label",l:"Label (e.g. Transmission no.)"},{f:"value",l:"Number"}];
 const TYRE_POS=["Front","Rear single","Rear duals","Steer","Drive","Trailer","Spare","Other"];
@@ -692,7 +692,7 @@ function openEditor(m){
       unit:g("unit"),meter2:g("meter2"),reading2:num(g("reading2")),reading2Date:num(g("reading2"))!==num(m.reading2)?today():(m.reading2Date||null),reading:num(g("reading")),readingDate:num(g("reading"))!==num(m.reading)?today():(m.readingDate||null),notes:g("notes"),
       otherIds:read("ed-ids").filter(r=>r.label||r.value),
       fluids:read("ed-fl").filter(r=>r.system||r.spec||r.qty||r.filter||r.price).map(r=>({...r,price:num(r.price)})),
-      intervals:read("ed-iv").filter(r=>r.task).map(r=>{const prev=old.find(o=>o.task===r.task)||{};return {task:r.task,every:num(r.every),unit:r.unit,months:r.unit==="months"?null:num(r.months),meter:r.meter||"",parts:r.parts||"",lastAt:prev.lastAt??null,lastDate:prev.lastDate??null}}),
+      intervals:read("ed-iv").filter(r=>r.task).map(r=>{const prev=old.find(o=>o.task===r.task)||{};return {task:r.task,every:num(r.every),unit:r.unit,months:r.unit==="months"?null:num(r.months),meter:r.meter||"",parts:r.parts||"",socket:String(r.socket||"").replace(/\s*mm\s*$/i,"").trim(),lastAt:prev.lastAt??null,lastDate:prev.lastDate??null}}),
       manuals:read("ed-man").filter(r=>r.title||r.url||r.assetId).map(r=>r.assetId?{title:r.title,kind:r.kind,assetId:r.assetId}:{title:r.title,kind:r.kind,url:r.url})};
     data.tyres=read("ed-ty").filter(r=>r.size||r.psi||r.notes).map(r=>({pos:r.pos||"Front",size:r.size||"",psi:r.psi||"",notes:r.notes||""}));
     data.videos=read("ed-vid").filter(r=>r.title||r.url).map(r=>({title:r.title,url:r.url,notes:r.notes||""}));

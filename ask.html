@@ -41,7 +41,7 @@ h1{font-size:1.4rem;margin:2px 0}
 </main>
 <div class="bar"><form id="f"><input id="q" placeholder="Ask about loads, silos, machines…" autocomplete="off" enterkeyhint="send"><button id="go" disabled>Ask</button></form></div>
 <script type="module">
-import {requireMember,makeDb,getScanner} from "./core.js?v=202611240011";
+import {requireMember,makeDb,getScanner} from "./core.js?v=202611240544";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const today=()=>new Date().toLocaleDateString("en-CA");
@@ -54,9 +54,9 @@ const getDoc=async(db,path)=>{try{const s=await db.doc(path).get();return s.exis
 
 async function load(){
   const G=makeDb("grain_"),W=makeDb("workshop_"),CH=makeDb("chem_"),admin=me.role==="admin";
-  const [D,O,C,lists,ngrs,farms,padcrops,cap,main,M,LG,OI,PR,LB]=await Promise.all([
+  const [D,O,C,lists,ngrs,farms,padcrops,cap,main,padarea,M,LG,OI,PR,LB]=await Promise.all([
     once(G.collection("deliveries")),once(G.collection("outloads")),once(G.collection("contracts")),
-    getDoc(G,"lists/main"),getDoc(G,"settings/ngrs"),getDoc(G,"settings/farms"),getDoc(G,"settings/padcrops"),getDoc(G,"settings/capacity"),getDoc(G,"settings/main"),
+    getDoc(G,"lists/main"),getDoc(G,"settings/ngrs"),getDoc(G,"settings/farms"),getDoc(G,"settings/padcrops"),getDoc(G,"settings/capacity"),getDoc(G,"settings/main"),getDoc(G,"settings/padarea"),
     once(W.collection("machines")),once(W.collection("logs")),once(W.collection("oils")),once(CH.collection("products")),once(CH.collection("labels"))]);
   const P={},SP={};let PU=[];
   if(admin){(await once(G.collection("pricing"))).forEach(x=>{if(x.v!=null)P[x.id]=x.v;if(x.spreads)SP[x.id]=x.spreads});PU=await once(CH.collection("purchases"))}
@@ -99,7 +99,7 @@ async function load(){
   let chem_spend;if(admin){const by={};PU.forEach(x=>{const p=PR.find(y=>y.id===x.productId),k=p?p.name:x.productId;const a=by[k]=by[k]||{qty:0,total_ex_gst:0,unit:p&&p.unit};a.qty=r1(a.qty+(+x.qty||0));a.total_ex_gst=r1(a.total_ex_gst+(+x.totalExGst||0))});chem_spend=by}
   const noMoney=v=>typeof v==="string"?v.replace(/\s*\((?:[^()]*?)\$\s?[\d,.]+[^()]*\)/g,"").replace(/\$\s?[\d,.]+(?:\s?(?:\/\s?(?:L|t|each|ea))|\s?(?:ex|inc)\s?GST)?/gi,"").replace(/\s{2,}/g," ").trim()
     :Array.isArray(v)?v.map(noMoney):v&&typeof v==="object"?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,noMoney(x)])):v;
-  DATA={today:today(),viewer:{name:me.name,role:me.role},grain:{crop_totals_t:totals,loads,out_loads:outs,silos_and_bags:silos,contracts,farms:(farms&&farms.list)||[],paddock_crops:padcrops||{},paddock_farms:(lists&&lists.pfarm)||{}},
+  DATA={today:today(),viewer:{name:me.name,role:me.role},grain:{crop_totals_t:totals,loads,out_loads:outs,silos_and_bags:silos,contracts,farms:(farms&&farms.list)||[],paddock_crops:padcrops||{},paddock_farms:(lists&&lists.pfarm)||{},paddock_area_ha:(padarea&&padarea.map)||{},note_yield:"t/ha = paddock tonnes / paddock_area_ha"},
     workshop:{machines,history:logs,farm_oils:oils},chemicals:{products:chemicals,spend:chem_spend}};
   if(!admin)DATA=noMoney(DATA);
   const n=D.length+O.length;$("#sub").textContent=`${n} loads, ${M.length} machines, ${PR.length} chemicals loaded. Answers come only from your records.`;

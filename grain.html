@@ -222,7 +222,7 @@ body.staff .staffnote{display:inline!important}
     <div id="farmMgr"></div>
     <div class="grid"><label>Farm name<input id="fa_name" placeholder="e.g. Culcairn, Alma Park"></label><label>NGR for this farm<select id="fa_ngr"></select></label></div>
     <div class="row"><button class="s" id="fa_add">Add farm</button></div>
-    <div id="padFarmBox" class="hide" style="margin-top:10px"><b>Paddocks on each farm</b><div id="padFarmMgr" class="grid"></div></div>
+    <div id="padFarmBox" class="hide" style="margin-top:10px"><b>Paddocks on each farm</b> <span class="mut">and their area (ha) for yield</span><div id="padFarmMgr" class="grid"></div></div>
    </div>
   </div>
   <div class="card">
@@ -235,7 +235,7 @@ body.staff .staffnote{display:inline!important}
 </section>
 </main>
 <script type="module">
-import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611240011";
+import {requireMember,makeDb,downloads,getScanner} from "./core.js?v=202611240544";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmt=(n,d=2)=>Number(n).toLocaleString("en-AU",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -243,7 +243,8 @@ const money=n=>"$"+fmt(n,0);
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const num=id=>{const v=$(id).value;return v===""?null:Number(v)};
 const CROPS=["Wheat","Canola","Barley","Faba Beans"],DEF=["Receival site","Own silo","Grain bag"],GR={Wheat:["H1","H2","APW1","AH1","ASW1","Feed"],Barley:["Malt 1","Food 1","Feed 1","Feed 2"]};
-let NG=[],totNgr="",PN={},FM=[],PC={},CAP={},NT={};
+let NG=[],totNgr="",PN={},FM=[],PC={},CAP={},NT={},PA={};
+const haOf=pd=>{const v=Number(PA[pd]);return v>0?v:null};
 let db=null,D=[],O=[],C=[],P={},S={oilBase:42,oilRate:1.5,weekEnd:0},L={pcrops:{},paddocks:[],stores:[...DEF],sites:{},grades:JSON.parse(JSON.stringify(GR))},editD=null,editC=null,admin=false,pv=false,myId=null,sample=null,dl=null,addKind=null,curStore="",curSite="",curGrade="",curPad="",prefilled=false;
 const owner=()=>admin&&!pv;
 const adj=(crop,oil,p)=>crop==="Canola"&&oil!=null?p*(1+S.oilRate/100*(oil-S.oilBase)):p;
@@ -405,7 +406,7 @@ function fillNgr(){const has=NG.length>0;$("#l_ngr").classList.toggle("hide",!ha
   $("#fa_ngr").innerHTML=ngOpt($("#fa_ngr").value);
   $("#farmMgr").innerHTML=FM.length?FM.map(f=>`<div class="it" style="border-bottom:1px solid var(--bd);padding:4px 0"><b>${esc(f.name)}</b><span class="row" style="margin:0;align-items:center"><select data-fngr="${esc(f.name)}" style="min-height:40px;width:auto">${ngOpt(f.ngr||"")}</select><button class="x" data-fx="${esc(f.name)}">Remove</button></span></div>`).join(""):`<span class="mut">No farms yet</span>`;
   $("#padFarmBox").classList.toggle("hide",!FM.length||!padList().length);
-  $("#padFarmMgr").innerHTML=FM.length?padList().map(pd=>`<label>Paddock ${esc(pd)}<select data-pf="${esc(pd)}"><option value="">— no farm —</option>${FM.map(f=>`<option value="${esc(f.name)}"${pfarm(pd)===f.name?" selected":""}>${esc(f.name)}${f.ngr?" · "+esc(ngrLbl(f.ngr)):""}</option>`).join("")}</select></label>`).join(""):"";
+  $("#padFarmMgr").innerHTML=FM.length?padList().map(pd=>`<label>Paddock ${esc(pd)}<span style="display:flex;gap:6px"><input type="number" step="0.1" min="0" inputmode="decimal" placeholder="ha" title="Paddock area in hectares" style="width:90px" data-pa="${esc(pd)}" value="${haOf(pd)??""}"><select data-pf="${esc(pd)}" style="flex:1"><option value="">— no farm —</option>${FM.map(f=>`<option value="${esc(f.name)}"${pfarm(pd)===f.name?" selected":""}>${esc(f.name)}${f.ngr?" · "+esc(ngrLbl(f.ngr)):""}</option>`).join("")}</select></span></label>`).join(""):"";
   setFarms();
   const used=[...new Set(D.map(d=>d.ngr).filter(Boolean))],tabs=[...new Set([...NG.map(x=>x.no),...used])];
   if(totNgr&&!tabs.includes(totNgr)&&totNgr!=="__none")totNgr="";
@@ -436,6 +437,9 @@ $("#farmMgr").onchange=async e=>{const sel=e.target.closest("[data-fngr]");if(!s
   if(await saveFM(FM.map(f=>f.name===sel.dataset.fngr?{...f,ngr:sel.value}:f)))status(`${sel.dataset.fngr} ${sel.value?"is now NGR "+ngrLbl(sel.value):"has no NGR"}.`)};
 $("#farmMgr").onclick=async e=>{const b=e.target.closest("[data-fx]");if(!b)return;if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again";return}
   const n=b.dataset.fx;if(await saveFM(FM.filter(f=>f.name!==n))){if(L.pfarm)Object.keys(L.pfarm).forEach(k=>{if(L.pfarm[k]===n)delete L.pfarm[k]});await saveL()}};
+$("#padFarmMgr").addEventListener("change",async e=>{const i=e.target.closest("[data-pa]");if(!i)return;const v=i.value===""?null:Number(i.value);
+  if(v!=null&&(!isFinite(v)||v<0)){status("Area must be a number of hectares.",true);return}const next={...PA};if(v)next[i.dataset.pa]=v;else delete next[i.dataset.pa];
+  try{await db.doc("settings/padarea").set({map:next});PA=next;status(`Paddock ${i.dataset.pa}: ${v?fmt(v,1)+" ha":"area cleared"}.`);renderTot();renderPad()}catch(er){status("Could not save the area ("+(er.code||"error")+").",true)}});
 $("#padFarmMgr").onchange=async e=>{const sel=e.target.closest("[data-pf]");if(!sel)return;L.pfarm=L.pfarm||{};
   if(sel.value)L.pfarm[sel.dataset.pf]=sel.value;else delete L.pfarm[sel.dataset.pf];await saveL();status(`Paddock ${sel.dataset.pf} ${sel.value?"is on "+sel.value:"has no farm"}.`);setPad(curPad)};
 $("#f_ngr").onchange=()=>{try{localStorage.setItem("gt_ngr",$("#f_ngr").value)}catch(e){}conOptions()};
@@ -582,7 +586,7 @@ function renderTot(){
    const cells=r=>cols.map(([k,,dp])=>{const a=wavg(r,k);return `<td>${a!=null?fmt(a,dp):"–"}</td>`}).join("");
    const sum=r=>r.reduce((a,d)=>a+cleanT(d),0),tot=sum(rows);
    const gl=(cr==="Wheat"||cr==="Barley")?Object.entries(rows.reduce((o,d)=>{const k=d.grade||"No grade";o[k]=(o[k]||0)+cleanT(d);return o},{})).filter(([,v])=>Math.abs(v)>0.005).map(([k,v])=>`${esc(k)} ${fmt(v)} t`).join(" · "):"";
-   return `<div class="card cr-${cr.replace(/\s/g,"")}"><div class="it"><b>${esc(cr)}</b><b>${fmt(tot)} t</b></div><div class="wrap"><table><tr><th>Storage</th><th>Loads</th><th>Tonnes</th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}</tr>`+
+   return `<div class="card cr-${cr.replace(/\s/g,"")}"><div class="it"><b>${esc(cr)}</b><b>${fmt(tot)} t</b></div>${(()=>{const pt={};totRows().filter(d=>d.crop===cr&&d.paddock).forEach(d=>pt[d.paddock]=(pt[d.paddock]||0)+cleanT(d));const withHa=Object.keys(pt).filter(k=>haOf(k)),ha=withHa.reduce((a,k)=>a+haOf(k),0),t=withHa.reduce((a,k)=>a+pt[k],0),miss=Object.keys(pt).length-withHa.length;return ha?`<div class="it" style="font-weight:700"><span>Yield ${fmt(t/ha)} t/ha</span><span class="mut">${fmt(t)} t off ${fmt(ha,1)} ha${miss?` · ${miss} paddock${miss>1?"s":""} without an area`:""}</span></div>`:""})()}<div class="wrap"><table><tr><th>Storage</th><th>Loads</th><th>Tonnes</th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}</tr>`+
    Object.entries(g).filter(([,r])=>Math.abs(sum(r))>0.005||nl(r)).map(([k,r])=>{const [s,n]=k.split("|"),moved=r.some(d=>d._neg);return `<tr><td>${esc(s)}${n?" – "+esc(n):""}${moved?`<div class="mut">left after out loads</div>`:""}${r.some(d=>d._out)?`<div class="mut">incl. out loads from farm</div>`:""}</td><td>${nl(r)}</td><td class="tn">${fmt(sum(r))}</td>${cells(r)}</tr>`}).join("")+
    `<tr><th>All ${esc(cr)}</th><th>${nl(rows.filter(d=>!d._out))}</th><th class="tn">${fmt(tot)}</th>${cells(rows).replace(/<td>/g,"<th>").replace(/<\/td>/g,"</th>")}</tr></table></div>${gl?`<div style="margin-top:6px">By grade: ${gl}</div>`:""}${(()=>{const v=Object.entries(rows.filter(d=>!d._neg).reduce((o,d)=>{if(d._out&&!d.variety)return o;const k=d.variety||"No variety";o[k]=(o[k]||0)+cleanT(d);return o},{})).filter(([,t])=>t>0.005);return v.length?`<div style="margin-top:4px">By variety: ${v.map(([k,t])=>`${esc(k)} ${fmt(t)} t`).join(" · ")}</div>`:""})()}<p class="mut">Averages are weighted by tonnes. Grain taken out of silos and bags is shown at the site it went to, with the quality from its docket.${cr==="Canola"?" Canola tonnes are as delivered (incl. admixture); payments are worked out on tonnes after admixture.":""}</p></div>`}).join("")||`<p class="mut">Totals appear once you add loads.</p>`;
   $("#s_base").value=S.oilBase;$("#s_rate").value=S.oilRate;$("#s_week").value=S.weekEnd;}
@@ -695,7 +699,7 @@ function renderStockTot(){renderMoney();$("#levelTot").innerHTML=levelsCard();co
 function renderPad(){renderStockTot();const m={},D=totRows();D.forEach(d=>{const k=d.paddock||"No paddock",x=m[k]=m[k]||{n:0,c:{}};x.n++;x.c[d.crop]=(x.c[d.crop]||0)+cleanT(d)});
   const rows=Object.entries(m).sort((a,b)=>(a[0]==="No paddock")-(b[0]==="No paddock")||a[0].localeCompare(b[0]));
   setPad(curPad);
-  $("#padTot").innerHTML=rows.length?`<div class="card"><span class="big">By paddock</span><div class="wrap"><table><tr><th>Paddock</th><th>Loads</th><th>Tonnes</th></tr>`+rows.map(([k,x])=>`<tr><td>${esc(k)}<div class="mut">${Object.entries(x.c).map(([c,v])=>`${esc(c)} ${fmt(v)} t`).join(" · ")}</div></td><td>${x.n}</td><td class="tn">${fmt(Object.values(x.c).reduce((a,v)=>a+v,0))}</td></tr>`).join("")+`</table></div><p class="mut">Harvested tonnes by paddock, as delivered. Loads with no paddock entered are grouped separately.</p></div>`:""}
+  $("#padTot").innerHTML=rows.length?`<div class="card"><span class="big">By paddock</span><div class="wrap"><table><tr><th>Paddock</th><th>Loads</th><th>Tonnes</th><th>Ha</th><th>t/ha</th></tr>`+rows.map(([k,x])=>{const ha=haOf(k),t=Object.values(x.c).reduce((a,v)=>a+v,0);return `<tr><td>${esc(k)}<div class="mut">${Object.entries(x.c).map(([c,v])=>`${esc(c)} ${fmt(v)} t${ha&&Object.keys(x.c).length>1?` (${fmt(v/ha)} t/ha)`:""}`).join(" · ")}</div></td><td>${x.n}</td><td class="tn">${fmt(t)}</td><td>${ha?fmt(ha,1):"—"}</td><td class="tn">${ha?fmt(t/ha):"—"}</td></tr>`}).join("")+`</table></div><p class="mut">Harvested tonnes by paddock, as delivered. Yield (t/ha) uses the paddock area set under NGR numbers → Farms. Loads with no paddock entered are grouped separately.</p></div>`:""}
 function renderAll(){flagCounts();fillNgr();conOptions();renderDel();renderCon();renderTot();renderPad();renderOut();renderLists();preview()}
 
 /* docket scan */
@@ -766,6 +770,7 @@ setCrop("Wheat");setSS(L.stores[0],"");mode();
   db.collection("outloads").onSnapshot(s=>{O=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.collection("contracts").onSnapshot(s=>{C=s.docs.map(x=>({id:x.id,...x.data()}));renderAll()},er);
   db.doc("settings/main").onSnapshot(s=>{if(s.exists)S={...S,...s.data()};renderAll()},()=>{});
+  db.doc("settings/padarea").onSnapshot(s=>{PA=s.exists&&s.data().map?s.data().map:{};renderAll()},()=>{});
   db.doc("settings/notify").onSnapshot(s=>{NT=s.exists?(s.data()||{}):{};ntPaint()},()=>{});
   db.doc("settings/capacity").onSnapshot(s=>{CAP=s.exists&&s.data().map?s.data().map:{};renderAll()},()=>{});
   db.doc("settings/padcrops").onSnapshot(s=>{PC=s.exists?(s.data()||{}):{};renderPC();showLock()},()=>{});
